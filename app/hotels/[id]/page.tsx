@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import ReviewModal from '@/app/components/ReviewModal';
 
 interface Hotel {
   id: number;
@@ -246,37 +247,17 @@ export default function HotelPage({ params }: PageProps) {
 
       {/* Review Modal */}
       {showReviewModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg shadow-lg max-w-md w-full max-h-96 overflow-y-auto">
-            <div className="p-6">
-              <h2 className="text-2xl font-bold text-slate-900 mb-2">Leave a Review</h2>
-              <p className="text-slate-600 text-sm mb-4">Coming in Phase 2.4+</p>
-
-              {/* Show suggestions */}
-              {gaps.length > 0 && (
-                <div className="bg-blue-50 p-3 rounded mb-4">
-                  <p className="text-xs font-semibold text-blue-900 mb-2">💡 Consider Mentioning:</p>
-                  <ul className="text-xs text-blue-800 space-y-1">
-                    {gaps.map((gap) => (
-                      <li key={gap.category_id}>• {gap.category_name}</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-
-              <p className="text-slate-600 text-sm mb-4">
-                The full review editor with text, voice, and AI features will be available in Phase 2.4+
-              </p>
-
-              <button
-                onClick={() => setShowReviewModal(false)}
-                className="w-full px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-900 font-medium rounded transition-colors"
-              >
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
+        <ReviewModal
+          hotelId={hotelId!}
+          hotelName={hotel?.name || 'This Hotel'}
+          dataGaps={gaps}
+          onClose={() => setShowReviewModal(false)}
+          onSubmitSuccess={() => {
+            setShowReviewModal(false);
+            // Refresh reviews
+            window.location.reload();
+          }}
+        />
       )}
     </div>
   );
