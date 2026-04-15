@@ -4,8 +4,7 @@ import { useState } from 'react';
 
 interface SearchResult {
   id: number;
-  review_text: string;
-  rating: number;
+  content: string;
   guest_name: string;
   created_at: string;
   similarity: number;
@@ -140,11 +139,6 @@ export default function SemanticSearchUI({ hotelId }: SemanticSearchUIProps) {
                             {new Date(result.created_at).toLocaleDateString()}
                           </span>
                         </div>
-                        {result.rating && (
-                          <div className="text-sm text-amber-600 mt-1">
-                            {'⭐'.repeat(result.rating)}
-                          </div>
-                        )}
                       </div>
                       <div className="text-right">
                         <span className={`px-3 py-1 rounded-full text-sm font-semibold ${getSimilarityColor(result.similarity)}`}>
@@ -152,7 +146,7 @@ export default function SemanticSearchUI({ hotelId }: SemanticSearchUIProps) {
                         </span>
                       </div>
                     </div>
-                    <p className="text-slate-700 text-sm leading-relaxed">{result.review_text}</p>
+                    <p className="text-slate-700 text-sm leading-relaxed">{result.content}</p>
                   </div>
                 ))}
               </div>

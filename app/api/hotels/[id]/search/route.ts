@@ -3,12 +3,10 @@ import { getEmbedding } from '@/lib/embeddings';
 
 interface SearchResult {
   id: number;
-  review_text: string;
-  rating: number;
+  content: string;
   guest_name: string;
   created_at: string;
   similarity: number;
-  category_id?: number | null;
 }
 
 interface SearchRequest {
@@ -51,11 +49,9 @@ export async function GET(
       `
       SELECT
         r.id,
-        r.review_text,
-        r.rating,
+        r.content,
         r.guest_name,
         r.created_at,
-        r.category_id,
         1 - (r.embedding <=> $1::vector) AS similarity
       FROM reviews r
       WHERE r.hotel_id = $2 AND r.embedding IS NOT NULL
@@ -67,12 +63,10 @@ export async function GET(
 
     const results: SearchResult[] = result.rows.map((row) => ({
       id: row.id,
-      review_text: row.review_text,
-      rating: row.rating,
+      content: row.content,
       guest_name: row.guest_name,
       created_at: row.created_at,
       similarity: row.similarity,
-      category_id: row.category_id,
     }));
 
     return Response.json({
