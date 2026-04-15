@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { query } from '@/lib/db';
+import { queueEmbeddingBatch, queueCategorySummarization } from '@/lib/queue';
 
 const apiKey = process.env.OPENAI_API_KEY;
 
@@ -62,32 +63,6 @@ Output:`,
   }
 }
 
-async function createEmbedding(text: string): Promise<number[]> {
-  try {
-    const response = await fetch('https://api.openai.com/v1/embeddings', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: 'text-embedding-3-small',
-        input: text,
-      }),
-    });
-
-    if (!response.ok) {
-      throw new Error(`OpenAI API error: ${response.statusText}`);
-    }
-
-    const data: any = await response.json();
-    return data.data?.[0]?.embedding || [];
-  } catch (error) {
-    console.error('Error creating embedding:', error);
-    return [];
-  }
-}
-
 export async function POST(request: NextRequest) {
   try {
     const body: ReviewSubmission = await request.json();
@@ -112,11 +87,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Categorize the review
+    // Categorize the review (in-request for now)
     const categories = await categorizeReview(review_text);
-
-    // Create embedding
-    const embedding = await createEmbedding(review_text);
 
     // Save review to database
     const insertResult = await query(
@@ -133,21 +105,6 @@ export async function POST(request: NextRequest) {
     );
 
     const reviewId = insertResult.rows[0].id;
-
-    // Save embedding if we got one
-    if (embedding.length > 0) {
-      try {
-        const embeddingStr = `[${embedding.join(',')}]`;
-        await query(
-          `INSERT INTO review_embeddings (review_id, embedding)
-           VALUES ($1, $2)`,
-          [reviewId, embeddingStr]
-        );
-      } catch (embeddingError) {
-        console.warn('Failed to save embedding:', embeddingError);
-        // Continue anyway - embedding is nice to have but not critical
-      }
-    }
 
     // Link categories to review
     if (categories.length > 0) {
@@ -181,6 +138,59 @@ export async function POST(request: NextRequest) {
           console.warn(`Failed to link category ${categoryName}:`, err);
         }
       }
+    }
+
+    // Queue async processing (fire and forget)
+    try {
+      // Queue embedding processing asynchronously
+      queueEmbeddingBatch([reviewId]).catch((error) => {
+        console.error('[API] Failed to queue embedding:', error);
+      });
+
+      // Queue category summarization for each category
+      if (categories.length > 0) {
+        for (const categoryName of categories) {
+          try {
+            const categoryCheck = await query(
+              'SELECT id FROM categories WHERE LOWER(name) = LOWER($1)',
+              [categoryName]
+            );
+
+            if (categoryCheck.rows.length > 0) {
+              const categoryId = categoryCheck.rows[0].id;
+
+              // Fetch recent reviews for this category to summarize
+              const recentReviews = await query(
+                `SELECT r.content FROM reviews r
+                 INNER JOIN review_categories rc ON r.id = rc.review_id
+                 WHERE rc.category_id = $1
+                 ORDER BY r.created_at DESC
+                 LIMIT 10`,
+                [categoryId]
+              );
+
+              const reviewTexts = recentReviews.rows.map((row) => row.content);
+
+              queueCategorySummarization(
+                hotel_id,
+                categoryId,
+                categoryName,
+                reviewTexts
+              ).catch((error) => {
+                console.error(
+                  `[API] Failed to queue category summary for ${categoryName}:`,
+                  error
+                );
+              });
+            }
+          } catch (err) {
+            console.warn(`[API] Failed to queue category summary ${categoryName}:`, err);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('[API] Failed to queue async jobs:', error);
+      // Continue - queueing failures don't block the response
     }
 
     return NextResponse.json({

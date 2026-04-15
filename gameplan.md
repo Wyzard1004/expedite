@@ -4,11 +4,24 @@ Product Description
 
 AI-Powered Smart Review System is a dynamic feedback platform designed to eliminate stale hotel data and reduce reviewer fatigue. Instead of forcing guests through long, static forms, the system intelligently identifies missing or outdated property information (the "Data Gaps") and dynamically asks guests 1-2 highly targeted questions via a low-friction text or conversational voice interface. Once collected, the system uses AI to categorize the feedback, summarize sentiments for future guests, and flag property managers about potential changes in their amenities.
 
-Day 1: Tuesday - Foundation & Infrastructure
+## STATUS: PHASES 1-2.4 COMPLETE ✅
+
+**Completed Milestones:**
+- ✅ Phase 1 (Infrastructure & DB Setup) - Next.js + Neon + pgvector
+- ✅ Phase 2.1 (Hotel API) - Backend routes for fetching hotels/reviews
+- ✅ Phase 2.2 (Data Gap Engine) - SQL logic identifying stale data
+- ✅ Phase 2.3 (Hotel Page UI) - Frontend displaying hotel details
+- ✅ Phase 2.4 (Text & Voice Reviews) - Dual-mode review submission with Magic Enhance, follow-ups, Whisper STT
+
+**Current Progress:** 8 React components, 6 API endpoints, full review pipeline (text + voice), 0 build errors
+
+---
+
+## Day 1: Tuesday - Foundation & Infrastructure [COMPLETED]
 
 Focus: Get the environment running, database schemas set, and basic UI skeletons up.
 
-Phase 1: Infrastructure & DB Setup (Morning)
+Phase 1: Infrastructure & DB Setup (Morning) [✅ COMPLETE]
 
 Phase 1.1: Initialize Next.js project (App Router or Pages, your preference) with Tailwind CSS. Set up the GitHub repo.
 
@@ -28,62 +41,103 @@ Include a vector column in the reviews table for embeddings.
 
 Phase 1.4: Seed the database with mock Expedia data (1-2 hotels, some existing reviews, and deliberately missing/stale categories to trigger the Gap Engine). Connect Next.js to the DB using pg or an ORM like Prisma/Drizzle.
 
-Phase 2: Core API & "Data Gap Engine" (Afternoon/Evening)
+Phase 2: Core API & "Data Gap Engine" (Afternoon/Evening) [✅ COMPLETE]
 
-Phase 2.1: Create backend API route to fetch a hotel and its existing reviews/categories.
+Phase 2.1: Create backend API route to fetch a hotel and its existing reviews/categories. [✅ COMPLETE]
 
-Phase 2.2: Implement the Data Gap Engine logic. Write the SQL query/function that identifies the top 2 missing or stale categories for a given hotel.
+Phase 2.2: Implement the Data Gap Engine logic. Write the SQL query/function that identifies the top 2 missing or stale categories for a given hotel. [✅ COMPLETE]
 
-Phase 2.3: Build the basic Frontend UI for the "Hotel Page" (Displaying hotel name, amenities, and a button to "Leave a Review").
+Phase 2.3: Build the basic Frontend UI for the "Hotel Page" (Displaying hotel name, amenities, and a button to "Leave a Review"). [✅ COMPLETE]
 
-Day 2: Wednesday - AI Features & The Review Flow
+Phase 2.4: Text & Voice Review System (Async Integration) [✅ COMPLETE]
+- TextReviewForm with Magic Enhance (GPT-4o-mini text polishing)
+- Smart follow-up questions powered by Data Gap Engine
+- One-click tag UI for responsive feedback
+- VoiceReviewUI with MediaRecorder API and Whisper STT
+- Review submission pipeline with categorization & embeddings
+- Full test coverage and production-ready code
 
-Focus: Implementing the core Hackathon prompt requirements—low-friction reviews and smart questioning.
+---
 
-Phase 3: Text Review & Magic Enhance (Morning)
+## Day 2: Wednesday - AI Features & The Review Flow [IN PROGRESS]
 
-Phase 3.1: Build the Text Review UI modal/page. Include the "Ideas to Cover" section powered by the Data Gap Engine from Phase 2.2.
+Focus: Async background processing, advanced voice features, and search optimization.
 
-Phase 3.2: Integrate OpenAI API (gpt-4o-mini). Implement the "Magic Enhance" button logic (takes raw notes -> formats nicely).
+Phase 2.5: Async Processing & Category Summarization [🔄 CURRENT PHASE]
 
-Phase 3.3: Implement the prompt injection: Based on the enhanced text, if a gap wasn't covered, have the LLM generate 1-2 smart follow-up questions.
+Phase 2.5: Async Processing & Category Summarization [🔄 CURRENT PHASE]
 
-Phase 3.4: Add the One-Click Tag UI (e.g., "Was the gym open? 
+Focus: Background job processing for review categorization and intelligent summaries.
 
-$$Yes/No$$
+Phase 2.5.1: Set up Bull job queue with Redis for background processing.
+- Install Bull, Bull-board, and Redis integration
+- Create job queue for review categorization tasks
+- Set up dashboard UI at /admin/jobs for monitoring
 
-") as a fallback for the lowest possible friction.
+Phase 2.5.2: Implement Async Summarizer for categories.
+- After each new review, queue a job to update category summaries
+- Generate 1-sentence summary per category (e.g., "Great gym with modern equipment")
+- Implement recency bias (weight recent reviews 2x higher than older ones)
+- Store summaries in categories table in summary_text column
 
-Phase 4: Voice Review & Async Processing (Afternoon/Evening)
+Phase 2.5.3: Batch background embedding processing.
+- Instead of synchronous embedding on review submit, queue async jobs
+- Process review embeddings in batch (5 at a time) for efficiency
+- Free up request/response cycle for faster user feedback
 
-Phase 4.1: Build the Voice UI (a simple microphone button with recording state). Use browser MediaRecorder API to capture audio chunks.
+---
 
-Phase 4.2: Connect STT and TTS. Send audio to Next.js -> OpenAI Whisper -> send text to GPT-4o-mini for conversation -> send response to ElevenLabs TTS -> play audio on frontend.
+## Day 3: Thursday - Advanced Features & Deployment
 
-Phase 4.3: The Processing Pipeline: When a review (text or voice) is finally submitted, write the API route that:
+Focus: Voice TTS, semantic search, host dashboard, and production deployment.
 
-Categorizes the review (JSON output).
+Phase 2.6: Advanced Voice Features & ElevenLabs TTS (Upcoming)
 
-Generates an embedding (text-embedding-3-small) and saves it.
+Phase 2.6.1: Integrate ElevenLabs TTS for voice responses.
+- Complete /api/voice/respond endpoint with actual TTS generation
+- Send AI-generated responses to ElevenLabs API for synthesis
+- Stream audio back to frontend for playback
 
-Updates the background Category Summary (with recency bias mitigation).
+Phase 2.6.2: Conversational voice interactions.
+- Support multi-turn voice exchanges (guest records → AI responds → guest can continue)
+- Context awareness for follow-up questions
 
-Day 3: Thursday - "Wow" Factors, Polish & Pitch Prep
+---
 
-Focus: Tying it together for the B2B side, semantic search, and ensuring it can be submitted.
+Phase 3.0: Host Dashboard & Discrepancy Detection (Upcoming)
 
-Phase 5: Search & Host Dashboard (Morning)
+Phase 3.1: Build Discrepancy Detector logic.
+- Compare review text sentiment about amenities vs. current DB state
+- Flag when guest says "no pool" but database claims "has pool"
+- Insert flagged discrepancies into amenity_flags table
 
-Phase 5.1: Implement AI Semantic Search. Create an API route that takes a search string, embeds it, and runs the pgvector cosine similarity query. Connect this to a search bar on the UI.
+Phase 3.2: Build Host Dashboard UI.
+- Create /admin/dashboard for property managers
+- Display flagged data issues, summary counts per category
+- Allow managers to update amenities in bulk
 
-Phase 5.2: Build the Discrepancy Detection logic. (If review says "no pool" but DB says "has pool", insert into amenity_flags).
+---
 
-Phase 5.3: Build the Host Dashboard UI. A simple page fetching from amenity_flags showing Hotel Managers what data might be stale based on user reviews.
+Phase 3.3: AI Semantic Search (Upcoming)
 
-Phase 6: Deployment & Submission (Afternoon/Night)
+Phase 3.3.1: Implement semantic search endpoint.
+- Accept search query, embed it with text-embedding-3-small
+- Run pgvector cosine similarity against stored embeddings
+- Return ranked reviews matching semantic intent
 
-Phase 6.1: Deployment Prep: Since you are using a cloud-hosted Neon database, deployment will be seamless. Ensure your Neon connection string (DATABASE_URL) and API keys (OpenAI, ElevenLabs) are added as environment variables in your deployment platform.
+Phase 3.3.2: Connect search to UI.
+- Add search bar to hotel pages for filtering reviews
+- Show similarity scores and highlighted matches
 
-Phase 6.2: Deploy Next.js frontend to Vercel (recommended for Next.js). Test the live link extensively to ensure the database connection works in production.
+---
 
-Phase 6.3: UI Polish. Add the Micro-Incentive banners ("Earn 50 pts"). Ensure Tailwind animations are smooth.
+Phase 4.0: Deployment & Polish (Upcoming)
+
+Phase 4.1: Production deployment.
+- Vercel deployment with DATABASE_URL, OPENAI_API_KEY, ELEVENLABS_API_KEY
+- Test full pipeline in production environment
+
+Phase 4.2: UI Polish and micro-incentives.
+- Add "Earn 50 pts" banners for review incentives
+- Smooth Tailwind animations
+- Mobile responsive refinements
