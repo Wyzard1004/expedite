@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "clear": "ts-node --project tsconfig.json db/clear.ts",
-    "seed": "ts-node --project tsconfig.json db/seed.ts"
+    "seed": "ts-node --project tsconfig.json db/seed.ts",
+    "check-db": "npx tsx scripts/check-db.ts"
   },
   "dependencies": {
     "csv-parse": "^6.2.1",
