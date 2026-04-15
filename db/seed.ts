@@ -87,10 +87,11 @@ Review: "${reviewText.substring(0, 500)}"`;
     }
 
     return { categories: [], summary: '' };
-  } catch (error: any) {
-    if (error.status === 429) {
+  } catch (error) {
+    const err = error as { status?: number; headers?: Record<string, string> };
+    if (err.status === 429) {
       // Rate limit hit - exponential backoff
-      rateLimitWaitTime = Math.min((error.headers?.['retry-after'] || 60) * 1000, 60000);
+      rateLimitWaitTime = Math.min((parseInt(err.headers?.['retry-after'] as string) || 60) * 1000, 60000);
       console.warn(`⚠ Rate limited! Retrying after ${rateLimitWaitTime}ms`);
       return extractCategoriesFromReview(reviewText); // Retry
     }
@@ -112,12 +113,12 @@ async function seedDatabase() {
     const descriptions: DescriptionRow[] = parse(descriptionData, {
       columns: true,
       skip_empty_lines: true,
-    }) as unknown[] as DescriptionRow[];
+    }) as DescriptionRow[];
 
     const reviews: ReviewRow[] = parse(reviewsData, {
       columns: true,
       skip_empty_lines: true,
-    }) as unknown[] as ReviewRow[];
+    }) as ReviewRow[];
 
     console.log(`✓ Parsed ${descriptions.length} hotels and ${reviews.length} reviews`);
 

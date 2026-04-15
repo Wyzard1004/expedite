@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { generateAudioResponse } from '@/lib/tts';
 
 const apiKey = process.env.OPENAI_API_KEY;
-const elevenLabsKey = process.env.ELEVENLABS_API_KEY;
 
 interface VoiceResponseRequest {
   context: string; // Hotel context
@@ -9,20 +9,32 @@ interface VoiceResponseRequest {
   user_text: string; // What user said
 }
 
+interface VoiceResponseData {
+  response: string;
+  should_ask_more: boolean;
+  audio_url?: string | null;
+}
+
 /**
  * Generate a conversational AI response for voice review
  * This endpoint is called after transcription to generate a follow-up question
- * In Phase 2.5+, responses can be fed to ElevenLabs TTS for audio playback
+ * Responses are synthesized to audio using ElevenLabs TTS
  */
-export async function POST(request: NextRequest) {
+export async function POST(request: NextRequest): Promise<NextResponse<VoiceResponseData>> {
   try {
     const body: VoiceResponseRequest = await request.json();
     const { context, gaps_targets, user_text } = body;
 
     if (!user_text || gaps_targets.length === 0) {
+      // No gaps to ask about - generate closing response
+      const audioUrl = await generateAudioResponse(
+        'Thank you for sharing! Your review has been recorded.'
+      );
+
       return NextResponse.json({
         response: 'Thank you for sharing! Your review has been recorded.',
         should_ask_more: false,
+        audio_url: audioUrl,
       });
     }
 
@@ -62,11 +74,20 @@ Response (keep it natural and conversational):`;
     const data: any = await response.json();
     const botResponse = data.choices?.[0]?.message?.content || 'Thank you for your feedback!';
 
+    // Generate audio response asynchronously
+    // Don't await - return response quickly, audio will be available separately
+    const shouldAskMore = !botResponse.toLowerCase().includes('thank');
+
+    // Try to generate audio, but don't block response if it fails
+    const audioUrl = await generateAudioResponse(botResponse).catch((error) => {
+      console.warn('[API] TTS generation failed:', error);
+      return null;
+    });
+
     return NextResponse.json({
       response: botResponse,
-      should_ask_more: !botResponse.toLowerCase().includes('thank'),
-      // In Phase 2.5+, can pass response to ElevenLabs TTS here
-      // audio_url: await generateAudioResponse(botResponse),
+      should_ask_more: shouldAskMore,
+      audio_url: audioUrl,
     });
   } catch (error) {
     console.error('Error generating voice response:', error);
@@ -74,6 +95,7 @@ Response (keep it natural and conversational):`;
       {
         response: 'Thank you for your review!',
         should_ask_more: false,
+        audio_url: null,
       },
       { status: 500 }
     );

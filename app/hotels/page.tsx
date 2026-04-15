@@ -23,7 +23,7 @@ export default function HotelsPage() {
         const res = await fetch('/api/hotels');
         if (!res.ok) throw new Error('Failed to fetch hotels');
         const data = await res.json();
-        setHotels(data);
+        setHotels(data.hotels || []);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Unknown error');
       } finally {

@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "clear": "ts-node --project tsconfig.json db/clear.ts",
     "seed": "ts-node --project tsconfig.json db/seed.ts"
   },
   "dependencies": {

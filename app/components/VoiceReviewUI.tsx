@@ -28,6 +28,10 @@ export default function VoiceReviewUI({
   const [recorderRef, setRecorderRef] = useState<VoiceRecorder | null>(null);
   const [recordedBlob, setRecordedBlob] = useState<Blob | null>(null);
   const [transcribing, setTranscribing] = useState(false);
+  const [conversationActive, setConversationActive] = useState(false);
+  const [aiResponse, setAiResponse] = useState<string | null>(null);
+  const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const [isPlayingAudio, setIsPlayingAudio] = useState(false);
 
   // Check if voice recording is supported
   const isSupported = VoiceRecorder.isSupported();
@@ -147,6 +151,34 @@ export default function VoiceReviewUI({
         return;
       }
 
+      // Get AI response with TTS
+      if (!conversationActive && dataGaps.length > 0) {
+        const gapNames = dataGaps.map((gap) => gap.category_name);
+        const responseRes = await fetch('/api/voice/respond', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            context: `Hotel: ${hotelName}`,
+            gaps_targets: gapNames,
+            user_text: transcript,
+          }),
+        });
+
+        if (responseRes.ok) {
+          const responseData = await responseRes.json();
+          setAiResponse(responseData.response);
+          setAudioUrl(responseData.audio_url);
+          setConversationActive(responseData.should_ask_more);
+
+          // Play audio if available
+          if (responseData.audio_url) {
+            playAudio(responseData.audio_url);
+          }
+          return;
+        }
+      }
+
+      // Submit final review
       const response = await fetch('/api/reviews', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -171,6 +203,27 @@ export default function VoiceReviewUI({
       setError(err instanceof Error ? err.message : 'Failed to submit review');
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const playAudio = (audioUrl: string) => {
+    try {
+      setIsPlayingAudio(true);
+      const audio = new Audio(audioUrl);
+      audio.addEventListener('ended', () => {
+        setIsPlayingAudio(false);
+      });
+      audio.addEventListener('error', () => {
+        setIsPlayingAudio(false);
+        console.error('Audio playback failed');
+      });
+      audio.play().catch((err) => {
+        console.error('Failed to play audio:', err);
+        setIsPlayingAudio(false);
+      });
+    } catch (err) {
+      console.error('Error playing audio:', err);
+      setIsPlayingAudio(false);
     }
   };
 
@@ -251,6 +304,28 @@ export default function VoiceReviewUI({
         </div>
       )}
 
+      {/* AI Response with TTS Audio */}
+      {aiResponse && (
+        <div className="bg-purple-50 p-4 rounded border-l-4 border-purple-500">
+          <p className="text-sm font-semibold text-purple-900 mb-2">🤖 AI Response:</p>
+          <p className="text-sm text-purple-800 mb-3">{aiResponse}</p>
+
+          {/* Audio Player */}
+          {audioUrl && (
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => playAudio(audioUrl)}
+                disabled={isPlayingAudio}
+                className="px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white text-xs font-medium rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isPlayingAudio ? '🔊 Playing...' : '🔊 Play Audio'}
+              </button>
+              <p className="text-xs text-purple-600">Powered by ElevenLabs</p>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Error Message */}
       {error && (
         <div className="bg-red-50 p-3 rounded border-l-4 border-red-500">
@@ -262,7 +337,7 @@ export default function VoiceReviewUI({
       <div className="flex gap-3 pt-4">
         <button
           onClick={onClose}
-          disabled={submitting || isRecording}
+          disabled={submitting || isRecording || isPlayingAudio}
           className="flex-1 px-4 py-2 border border-slate-300 hover:border-slate-400 text-slate-700 font-medium rounded-lg transition-colors disabled:opacity-50"
         >
           Cancel
@@ -270,16 +345,18 @@ export default function VoiceReviewUI({
         {transcript && (
           <button
             onClick={handleSubmitVoiceReview}
-            disabled={submitting || !transcript.trim()}
+            disabled={submitting || !transcript.trim() || isPlayingAudio}
             className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
             {submitting ? (
               <>
                 <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                Submitting...
+                {conversationActive ? 'Getting Response...' : 'Submitting...'}
               </>
             ) : (
-              <>✓ Submit Voice Review</>
+              <>
+                {conversationActive ? '→ Continue' : '✓ Submit Voice Review'}
+              </>
             )}
           </button>
         )}
