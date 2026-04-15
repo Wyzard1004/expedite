@@ -55,10 +55,13 @@ async function generateEmbeddings() {
         const data = await response.json();
         const embedding = data.data[0].embedding;
 
-        // Store embedding in database
+        // Store embedding in database using pgvector format
+        // pgvector expects vector as: [0.123,0.456,...] format
+        const embeddingStr = `[${embedding.join(',')}]`;
+        
         await pool.query(
-          'UPDATE reviews SET embedding = $1 WHERE id = $2',
-          [JSON.stringify(embedding), review.id]
+          'UPDATE reviews SET embedding = $1::vector WHERE id = $2',
+          [embeddingStr, review.id]
         );
 
         successful++;

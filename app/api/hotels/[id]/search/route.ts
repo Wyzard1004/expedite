@@ -44,8 +44,8 @@ export async function GET(
       );
     }
 
-    // Convert array to pgvector format (JSON string)
-    const queryEmbeddingJson = JSON.stringify(queryEmbedding);
+    // Convert array to pgvector format: [0.123,0.456,...]
+    const queryEmbeddingStr = `[${queryEmbedding.join(',')}]`;
 
     // Search reviews using vector similarity
     const result = await query(
@@ -61,7 +61,7 @@ export async function GET(
       ORDER BY similarity DESC
       LIMIT $3
       `,
-      [queryEmbeddingJson, hotelId, limit]
+      [queryEmbeddingStr, hotelId, limit]
     );
 
     const results: SearchResult[] = result.rows.map((row) => ({
