@@ -11,8 +11,6 @@
     "seed": "ts-node --project tsconfig.json db/seed.ts"
   },
   "dependencies": {
-    "bull": "^4.16.5",
-    "bull-board": "^1.7.2",
     "csv-parse": "^6.2.1",
     "dotenv": "^17.4.2",
     "next": "16.2.3",

@@ -50,8 +50,21 @@ interface ExtractedCategories {
 let requestCount = 0;
 let rateLimitWaitTime = 0;
 
-async function extractCategoriesFromReview(reviewText: string): Promise<ExtractedCategories> {
-  const prompt = `Extract 2-5 key amenities or features mentioned in this hotel review. Return JSON only: {"categories": ["wifi", "service"], "summary": "brief phrase"}
+async function extractCategoriesFromReview(reviewText: string, existingCategories: Set<string>): Promise<ExtractedCategories> {
+  const existingCategoriesList = Array.from(existingCategories)
+    .map((cat) => `"${cat}"`)
+    .join(', ');
+
+  // Scale the number of keywords based on review length
+  const minKeywords = 1;
+  const maxKeywords = 10;
+
+  const prompt = `Extract ${minKeywords}-${maxKeywords} key amenities or features mentioned in this hotel review. Try to capture ALL important aspects mentioned, even if they seem similar.
+You MUST only extract from the list of EXISTING categories if they match the review content: [${existingCategoriesList}]
+If a review mentions something not in the existing list, you may add a NEW category only if it's NOT similar to existing ones. 
+It is OKAY to have some overlap, but avoid adding categories that are essentially duplicates of existing ones. 
+If you add a new category, it should be clearly distinct from existing categories. A review can have multiple categories, but only add new ones if they are truly unique and not just a rephrasing of existing categories.
+Return JSON only: {"categories": ["wifi", "service"], "summary": "brief phrase"}
 
 Review: "${reviewText.substring(0, 500)}"`;
 
@@ -93,7 +106,7 @@ Review: "${reviewText.substring(0, 500)}"`;
       // Rate limit hit - exponential backoff
       rateLimitWaitTime = Math.min((parseInt(err.headers?.['retry-after'] as string) || 60) * 1000, 60000);
       console.warn(`⚠ Rate limited! Retrying after ${rateLimitWaitTime}ms`);
-      return extractCategoriesFromReview(reviewText); // Retry
+      return extractCategoriesFromReview(reviewText, existingCategories); // Retry
     }
     console.warn('⚠ LLM extraction failed, using empty categories');
     return { categories: [], summary: '' };
@@ -146,12 +159,28 @@ async function seedDatabase() {
 
     const createdCategories = new Map<string, number>();
 
+    // Fetch existing categories from database
+    const existingCategoriesResult = await pool.query(`SELECT name FROM categories`);
+    const existingCategories = new Set(
+      existingCategoriesResult.rows.map((row: {name: string}) => row.name.toLowerCase())
+    );
+
+    console.log(`📚 Found ${existingCategories.size} existing categories in database\n`);
+
+    // Initialize createdCategories with existing ones
+    for (const row of existingCategoriesResult.rows) {
+      const categoryResult = await pool.query(`SELECT id FROM categories WHERE name = $1`, [row.name]);
+      if (categoryResult.rows.length > 0) {
+        createdCategories.set(row.name.toLowerCase(), categoryResult.rows[0].id as number);
+      }
+    }
+
     // Process reviews in parallel batches - ALL available reviews for seeded hotels
     const reviewsForSeeding = reviews.filter((r) => hotelIds.has(r.eg_property_id) && r.review_text);
 
     console.log(`📝 Processing ${reviewsForSeeding.length} reviews in parallel batches...\n`);
 
-    const batchSize = 8; // 8 concurrent requests
+    const batchSize = 32; // 32 concurrent requests
     let processedCount = 0;
     const startTime = Date.now();
 
@@ -162,7 +191,7 @@ async function seedDatabase() {
       const results = await Promise.all(
         batch.map(async (review) => {
           const hotelId = hotelIds.get(review.eg_property_id)!;
-          const extracted = await extractCategoriesFromReview(review.review_text);
+          const extracted = await extractCategoriesFromReview(review.review_text, existingCategories);
 
           // Insert review
           const reviewResult = await pool.query(

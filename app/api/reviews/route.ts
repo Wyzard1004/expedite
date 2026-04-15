@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 import { queueEmbeddingBatch, queueCategorySummarization } from '@/lib/queue';
+import { detectDiscrepancies } from '@/lib/discrepancies';
 
 const apiKey = process.env.OPENAI_API_KEY;
 
@@ -139,6 +140,11 @@ export async function POST(request: NextRequest) {
         }
       }
     }
+
+    // Detect discrepancies asynchronously (fire and forget)
+    detectDiscrepancies(hotel_id, review_text, reviewId).catch((error) => {
+      console.error('[API] Failed to detect discrepancies:', error);
+    });
 
     // Queue async processing (fire and forget)
     try {

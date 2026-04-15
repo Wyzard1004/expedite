@@ -44,6 +44,8 @@ export default function HotelPage({ params }: PageProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showReviewModal, setShowReviewModal] = useState(false);
+  const [showAllReviews, setShowAllReviews] = useState(false);
+  const [selectedAmenity, setSelectedAmenity] = useState<Category | null>(null);
 
   // Get hotel ID from params
   useEffect(() => {
@@ -184,19 +186,29 @@ export default function HotelPage({ params }: PageProps) {
         {/* Amenities / Categories Section */}
         {categories.length > 0 && (
           <div className="bg-white rounded-lg shadow p-6">
-            <h2 className="text-lg font-semibold text-slate-900 mb-4">
-              📋 Mentioned Amenities ({categories.length})
-            </h2>
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
-              {categories.map((category) => (
-                <div
-                  key={category.id}
-                  className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-2 rounded text-sm transition-colors"
-                >
-                  ✓ {category.name}
-                </div>
-              ))}
-            </div>
+            {(() => {
+              const amenitiesWithReviews = categories.filter((category) =>
+                reviews.some((review) => review.categories.includes(category.name))
+              );
+              return amenitiesWithReviews.length > 0 ? (
+                <>
+                  <h2 className="text-lg font-semibold text-slate-900 mb-4">
+                    📋 Mentioned Amenities ({amenitiesWithReviews.length})
+                  </h2>
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
+                    {amenitiesWithReviews.map((category) => (
+                      <button
+                        key={category.id}
+                        onClick={() => setSelectedAmenity(category)}
+                        className="bg-slate-100 hover:bg-blue-200 text-slate-700 px-3 py-2 rounded text-sm transition-colors text-left cursor-pointer"
+                      >
+                        ✓ {category.name}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              ) : null;
+            })()}
           </div>
         )}
 
@@ -205,7 +217,7 @@ export default function HotelPage({ params }: PageProps) {
           <div className="bg-white rounded-lg shadow p-6">
             <h2 className="text-lg font-semibold text-slate-900 mb-4">⭐ Recent Reviews ({reviews.length})</h2>
             <div className="space-y-4">
-              {reviews.slice(0, 3).map((review) => (
+              {(showAllReviews ? reviews : reviews.slice(0, 3)).map((review) => (
                 <div key={review.id} className="border-l-4 border-slate-300 pl-4 py-2">
                   <div className="flex justify-between items-start mb-2">
                     <span className="font-medium text-slate-900">{review.guest_name}</span>
@@ -229,8 +241,11 @@ export default function HotelPage({ params }: PageProps) {
                 </div>
               ))}
               {reviews.length > 3 && (
-                <button className="text-blue-600 hover:underline text-sm font-medium mt-4">
-                  View all {reviews.length} reviews →
+                <button 
+                  onClick={() => setShowAllReviews(!showAllReviews)}
+                  className="text-blue-600 hover:underline text-sm font-medium mt-4"
+                >
+                  {showAllReviews ? '← Show less' : `View all ${reviews.length} reviews →`}
                 </button>
               )}
             </div>
@@ -258,6 +273,48 @@ export default function HotelPage({ params }: PageProps) {
             window.location.reload();
           }}
         />
+      )}
+
+      {/* Amenity Details Modal */}
+      {selectedAmenity && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg shadow-lg max-w-2xl w-full max-h-96 overflow-y-auto">
+            <div className="sticky top-0 bg-white border-b border-slate-200 p-6 flex justify-between items-center">
+              <h2 className="text-2xl font-bold text-slate-900">{selectedAmenity.name}</h2>
+              <button
+                onClick={() => setSelectedAmenity(null)}
+                className="text-slate-400 hover:text-slate-600 text-2xl"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              <div>
+                <h3 className="font-semibold text-slate-900 mb-3">
+                  Reviews mentioning {selectedAmenity.name}
+                </h3>
+                <div className="space-y-3">
+                  {reviews
+                    .filter((review) => review.categories.includes(selectedAmenity.name))
+                    .map((review) => (
+                      <div key={review.id} className="border-l-4 border-blue-300 pl-4 py-2 bg-slate-50 rounded">
+                        <div className="flex justify-between items-start mb-1">
+                          <span className="font-medium text-slate-900">{review.guest_name}</span>
+                          <span className="text-xs text-slate-500">
+                            {new Date(review.created_at).toLocaleDateString()}
+                          </span>
+                        </div>
+                        <p className="text-slate-700 text-sm">{review.content}</p>
+                      </div>
+                    ))}
+                  {reviews.filter((review) => review.categories.includes(selectedAmenity.name)).length === 0 && (
+                    <p className="text-slate-500 text-sm">No reviews mention this amenity yet.</p>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
