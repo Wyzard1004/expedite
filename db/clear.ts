@@ -51,6 +51,17 @@ async function clearDatabase() {
       }
     }
 
+    // Clear embedding vectors explicitly
+    try {
+      await client.query(`UPDATE reviews SET embedding = NULL`);
+      console.log('✓ Cleared embedding vectors');
+    } catch (error: any) {
+      // Table might not exist, that's ok
+      if (!error.message.includes('does not exist')) {
+        console.warn(`⚠️  Error clearing embeddings:`, error.message);
+      }
+    }
+
     console.log('✅ Database cleared successfully');
   } catch (error) {
     console.error('❌ Error clearing database:', error);

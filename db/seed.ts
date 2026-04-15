@@ -272,6 +272,67 @@ async function seedDatabase() {
     }
 
     console.log('✓ Created sample amenity flags for stale data');
+
+    // Generate embeddings for all reviews
+    console.log('\n📊 Generating review embeddings...');
+    const allReviewsResult = await pool.query('SELECT id, content FROM reviews ORDER BY id');
+    const allReviews = allReviewsResult.rows;
+    let embeddingCount = 0;
+    let embeddingError = 0;
+
+    if (allReviews.length > 0) {
+      console.log(`  Starting embeddings for ${allReviews.length} reviews...`);
+      const BATCH_SIZE = 50; // Smaller batch for seeding (faster feedback)
+
+      for (let i = 0; i < allReviews.length; i++) {
+        const review = allReviews[i];
+
+        try {
+          // Call OpenAI to generate embedding
+          const response = await fetch('https://api.openai.com/v1/embeddings', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+            },
+            body: JSON.stringify({
+              model: 'text-embedding-3-small',
+              input: review.content,
+            }),
+          });
+
+          if (!response.ok) {
+            throw new Error(`OpenAI API error: ${response.statusText}`);
+          }
+
+          const data = await response.json();
+          const embedding = data.data[0].embedding;
+
+          // Store embedding with proper pgvector format
+          const embeddingStr = `[${embedding.join(',')}]`;
+          await pool.query('UPDATE reviews SET embedding = $1::vector WHERE id = $2', [
+            embeddingStr,
+            review.id,
+          ]);
+
+          embeddingCount++;
+
+          // Progress every BATCH_SIZE
+          if ((i + 1) % BATCH_SIZE === 0 || i === allReviews.length - 1) {
+            console.log(`  ✓ Generated embeddings: ${i + 1}/${allReviews.length}`);
+          }
+
+          // Small delay to avoid rate limiting
+          await new Promise((resolve) => setTimeout(resolve, 50));
+        } catch (err) {
+          console.error(`  ❌ Error embedding review ${review.id}:`, err instanceof Error ? err.message : String(err));
+          embeddingError++;
+        }
+      }
+
+      console.log(`✓ Generated ${embeddingCount} embeddings${embeddingError > 0 ? ` (${embeddingError} errors)` : ''}`);
+    }
+
     console.log('✅ Database seeding complete!');
     process.exit(0);
   } catch (error) {
