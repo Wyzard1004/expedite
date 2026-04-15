@@ -1,0 +1,92 @@
+import { query } from '@/lib/db';
+import { getEmbedding } from '@/lib/embeddings';
+
+interface SearchResult {
+  id: number;
+  review_text: string;
+  rating: number;
+  guest_name: string;
+  created_at: string;
+  similarity: number;
+  category_id?: number | null;
+}
+
+interface SearchRequest {
+  query: string;
+  limit?: number;
+}
+
+export async function GET(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params;
+    const hotelId = parseInt(id, 10);
+
+    if (isNaN(hotelId)) {
+      return Response.json({ error: 'Invalid hotel ID' }, { status: 400 });
+    }
+
+    const { searchParams } = new URL(request.url);
+    const searchQuery = searchParams.get('q') || searchParams.get('query');
+    const limit = Math.min(parseInt(searchParams.get('limit') || '10', 10), 50);
+
+    if (!searchQuery) {
+      return Response.json({ error: 'Search query required' }, { status: 400 });
+    }
+
+    // Embed the search query
+    const queryEmbedding = await getEmbedding(searchQuery);
+
+    if (!queryEmbedding) {
+      return Response.json(
+        { error: 'Failed to embed search query' },
+        { status: 500 }
+      );
+    }
+
+    // Search reviews using vector similarity
+    const result = await query(
+      `
+      SELECT
+        r.id,
+        r.review_text,
+        r.rating,
+        r.guest_name,
+        r.created_at,
+        r.category_id,
+        1 - (r.embedding <=> $1::vector) AS similarity
+      FROM reviews r
+      WHERE r.hotel_id = $2 AND r.embedding IS NOT NULL
+      ORDER BY similarity DESC
+      LIMIT $3
+      `,
+      [queryEmbedding, hotelId, limit]
+    );
+
+    const results: SearchResult[] = result.rows.map((row) => ({
+      id: row.id,
+      review_text: row.review_text,
+      rating: row.rating,
+      guest_name: row.guest_name,
+      created_at: row.created_at,
+      similarity: row.similarity,
+      category_id: row.category_id,
+    }));
+
+    return Response.json({
+      success: true,
+      hotel_id: hotelId,
+      query: searchQuery,
+      results,
+      total: results.length,
+    });
+  } catch (error) {
+    console.error('[API] Semantic search error:', error);
+    return Response.json(
+      { error: 'Failed to perform semantic search' },
+      { status: 500 }
+    );
+  }
+}

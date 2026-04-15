@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import ReviewModal from '@/app/components/ReviewModal';
+import SemanticSearchUI from '@/app/components/SemanticSearchUI';
 
 interface Hotel {
   id: number;
@@ -209,6 +210,14 @@ export default function HotelPage({ params }: PageProps) {
                 </>
               ) : null;
             })()}
+          </div>
+        )}
+
+        {/* Search Reviews Section */}
+        {reviews.length > 0 && (
+          <div className="bg-white rounded-lg shadow p-6">
+            <h2 className="text-lg font-semibold text-slate-900 mb-4">🔍 Search Reviews</h2>
+            <SemanticSearchUI hotelId={hotelId!} />
           </div>
         )}
 
