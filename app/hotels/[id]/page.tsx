@@ -131,9 +131,14 @@ export default function HotelPage({ params }: PageProps) {
       {/* Header */}
       <div className="bg-white border-b border-slate-200">
         <div className="max-w-4xl mx-auto p-4">
-          <Link href="/hotels" className="text-blue-600 hover:underline text-sm mb-4 inline-block">
-            ← Back to Hotels
-          </Link>
+          <div className="flex items-center justify-between mb-4">
+            <Link href="/" className="text-blue-600 hover:text-blue-700 transition-colors text-sm font-medium flex items-center gap-1">
+              🏠 Home
+            </Link>
+            <Link href="/hotels" className="text-blue-600 hover:text-blue-700 transition-colors text-sm font-medium flex items-center gap-1">
+              ← Back to Hotels
+            </Link>
+          </div>
           <h1 className="text-4xl font-bold text-slate-900">{hotel.name || 'Hotel'}</h1>
           <p className="text-slate-600 mt-2">📍 {hotel.location}</p>
         </div>
@@ -168,18 +173,23 @@ export default function HotelPage({ params }: PageProps) {
           </div>
         )}
 
-        {/* Leave a Review CTA */}
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="flex items-center justify-between">
+        {/* Leave a Review CTA with Micro-Incentive */}
+        <div className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-lg shadow-lg p-6 border-l-4 border-purple-500 animate-pulse-slow">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div>
-              <h2 className="text-xl font-semibold text-slate-900">Share Your Experience</h2>
-              <p className="text-slate-600 text-sm mt-1">Tell us about your stay at {hotel.name}</p>
+              <div className="flex items-center gap-2 mb-2">
+                <span className="inline-block px-3 py-1 bg-purple-600 text-white text-xs font-bold rounded-full animate-bounce">
+                  ⭐ EARN 50 PTS
+                </span>
+              </div>
+              <h2 className="text-xl font-bold text-slate-900">Share Your Experience</h2>
+              <p className="text-slate-600 text-sm mt-1">Tell us about your stay at {hotel.name} and earn reward points!</p>
             </div>
             <button
               onClick={() => setShowReviewModal(true)}
-              className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors"
+              className="px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-medium rounded-lg transition-all transform hover:scale-105 shadow-lg flex items-center justify-center gap-2 whitespace-nowrap"
             >
-              Leave a Review
+              ✍️ Leave a Review
             </button>
           </div>
         </div>

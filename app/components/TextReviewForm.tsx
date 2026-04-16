@@ -19,6 +19,11 @@ interface FollowUpState {
   gaps_missing: string[];
 }
 
+interface FollowUpResponse {
+  response: string;
+  comment?: string;
+}
+
 export default function TextReviewForm({
   hotelId,
   hotelName,
@@ -30,6 +35,7 @@ export default function TextReviewForm({
   const [enhancedText, setEnhancedText] = useState('');
   const [enhancing, setEnhancing] = useState(false);
   const [followUp, setFollowUp] = useState<FollowUpState | null>(null);
+  const [followUpResponse, setFollowUpResponse] = useState<FollowUpResponse | null>(null);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -98,7 +104,6 @@ export default function TextReviewForm({
         body: JSON.stringify({
           hotel_id: hotelId,
           review_text: reviewText,
-          source: 'text',
           tags: selectedTags,
           gaps_mentioned: followUp?.gaps_mentioned || [],
         }),
@@ -173,9 +178,15 @@ export default function TextReviewForm({
 
       {/* Enhanced Text Preview */}
       {enhancedText && (
-        <div className="bg-gradient-to-r from-green-50 to-emerald-50 p-4 rounded border-l-4 border-green-500">
-          <p className="text-xs font-semibold text-green-900 mb-2">✨ Enhanced Preview:</p>
-          <p className="text-sm text-green-800">{enhancedText}</p>
+        <div className="bg-gradient-to-r from-green-50 to-emerald-50 p-4 rounded border-l-4 border-green-500 space-y-3">
+          <p className="text-xs font-semibold text-green-900">✨ Enhanced Preview:</p>
+          <p className="text-sm text-green-800 bg-white p-3 rounded border border-green-200">{enhancedText}</p>
+          <button
+            onClick={() => setInitialText(enhancedText)}
+            className="w-full px-3 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded transition-colors flex items-center justify-center gap-2"
+          >
+            ✓ Use Enhanced Version
+          </button>
         </div>
       )}
 
@@ -184,7 +195,8 @@ export default function TextReviewForm({
         <FollowUpQuestion
           question={followUp.question}
           gapsMissing={followUp.gaps_missing}
-          onResponse={(response) => {
+          onResponse={(response, comment) => {
+            setFollowUpResponse({ response, comment });
             setSelectedTags([...selectedTags, response]);
           }}
         />

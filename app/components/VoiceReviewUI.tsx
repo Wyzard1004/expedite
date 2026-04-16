@@ -21,8 +21,10 @@ export default function VoiceReviewUI({
 }: VoiceReviewUIProps) {
   const [isRecording, setIsRecording] = useState(false);
   const [transcript, setTranscript] = useState('');
+  const [enhancedTranscript, setEnhancedTranscript] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [enhancing, setEnhancing] = useState(false);
   const [success, setSuccess] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
   const [recorderRef, setRecorderRef] = useState<VoiceRecorder | null>(null);
@@ -115,6 +117,40 @@ export default function VoiceReviewUI({
     }
   };
 
+  const handleEnhanceTranscript = async () => {
+    if (!transcript.trim()) {
+      setError('Please transcribe something first');
+      return;
+    }
+
+    try {
+      setEnhancing(true);
+      setError(null);
+
+      const response = await fetch('/api/reviews/enhance', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: transcript }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to enhance transcript');
+      }
+
+      const data = await response.json();
+      setEnhancedTranscript(data.enhanced_text);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Enhancement failed');
+    } finally {
+      setEnhancing(false);
+    }
+  };
+
+  const handleUseEnhanced = () => {
+    setTranscript(enhancedTranscript);
+    setEnhancedTranscript('');
+  };
+
   const transcribeAudio = async (audioBlob: Blob) => {
     try {
       setTranscribing(true);
@@ -185,7 +221,6 @@ export default function VoiceReviewUI({
         body: JSON.stringify({
           hotel_id: hotelId,
           review_text: transcript,
-          source: 'voice',
           tags: [],
         }),
       });
@@ -301,6 +336,40 @@ export default function VoiceReviewUI({
           <p className="text-sm text-green-800">
             {transcript || 'Processing your audio...'}
           </p>
+        </div>
+      )}
+
+      {/* Magic Enhance Button */}
+      {transcript && !enhancedTranscript && (
+        <button
+          onClick={handleEnhanceTranscript}
+          disabled={enhancing || submitting || isRecording}
+          className="w-full px-4 py-3 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-medium rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-sm hover:shadow"
+        >
+          {enhancing ? (
+            <>
+              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              Enhancing your transcript...
+            </>
+          ) : (
+            <>
+              ✨ Magic Enhance
+            </>
+          )}
+        </button>
+      )}
+
+      {/* Enhanced Transcript Preview */}
+      {enhancedTranscript && (
+        <div className="bg-gradient-to-r from-green-50 to-emerald-50 p-4 rounded border-l-4 border-green-500 space-y-3">
+          <p className="text-xs font-semibold text-green-900">✨ Enhanced Transcript:</p>
+          <p className="text-sm text-green-800 bg-white p-3 rounded border border-green-200">{enhancedTranscript}</p>
+          <button
+            onClick={handleUseEnhanced}
+            className="w-full px-3 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded transition-colors flex items-center justify-center gap-2"
+          >
+            ✓ Use Enhanced Version
+          </button>
         </div>
       )}
 

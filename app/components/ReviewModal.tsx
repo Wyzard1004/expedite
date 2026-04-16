@@ -22,8 +22,8 @@ export default function ReviewModal({
   const [activeTab, setActiveTab] = useState<'text' | 'voice'>('text');
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-96 overflow-hidden flex flex-col">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 animate-fade-in">
+      <div className="bg-white rounded-lg shadow-xl w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col animate-slide-up">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-slate-200">
           <div>

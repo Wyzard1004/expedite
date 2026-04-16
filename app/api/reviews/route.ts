@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 import { queueEmbeddingBatch, queueCategorySummarization } from '@/lib/queue';
 import { detectDiscrepancies } from '@/lib/discrepancies';
+import { getEmbedding } from '@/lib/embeddings';
 
 const apiKey = process.env.OPENAI_API_KEY;
 
@@ -67,7 +68,7 @@ Output:`,
 export async function POST(request: NextRequest) {
   try {
     const body: ReviewSubmission = await request.json();
-    const { hotel_id, review_text, source, gaps_mentioned } = body;
+    const { hotel_id, review_text, gaps_mentioned } = body;
 
     // Validation
     if (!hotel_id || !review_text) {
@@ -93,15 +94,13 @@ export async function POST(request: NextRequest) {
 
     // Save review to database
     const insertResult = await query(
-      `INSERT INTO reviews (hotel_id, guest_name, content, source, ai_generated_categories)
-       VALUES ($1, $2, $3, $4, $5)
+      `INSERT INTO reviews (hotel_id, guest_name, content)
+       VALUES ($1, $2, $3)
        RETURNING id`,
       [
         hotel_id,
         'Guest', // Anonymous by default
         review_text,
-        source || 'text',
-        JSON.stringify(categories),
       ]
     );
 
@@ -141,18 +140,35 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Generate embedding synchronously
+    try {
+      console.log(`[API] Generating embedding for review ${reviewId}...`);
+      const embedding = await getEmbedding(review_text);
+
+      if (embedding && embedding.length > 0) {
+        // Store embedding in pgvector format: [0.123,0.456,...]
+        const embeddingStr = `[${embedding.join(',')}]`;
+        await query('UPDATE reviews SET embedding = $1::vector WHERE id = $2', [
+          embeddingStr,
+          reviewId,
+        ]);
+        console.log(`[API] ✓ Embedding generated and stored for review ${reviewId}`);
+      } else {
+        console.warn(`[API] Failed to generate embedding for review ${reviewId}`);
+      }
+    } catch (err) {
+      console.error(`[API] Error generating embedding for review ${reviewId}:`, err);
+      // Don't fail the review submission if embedding fails
+    }
+
     // Detect discrepancies asynchronously (fire and forget)
     detectDiscrepancies(hotel_id, review_text, reviewId).catch((error) => {
       console.error('[API] Failed to detect discrepancies:', error);
     });
 
-    // Queue async processing (fire and forget)
+    // Queue async processing (fire and forget) - for categorization jobs
+    // Note: Embeddings are now generated synchronously above
     try {
-      // Queue embedding processing asynchronously
-      queueEmbeddingBatch([reviewId]).catch((error) => {
-        console.error('[API] Failed to queue embedding:', error);
-      });
-
       // Queue category summarization for each category
       if (categories.length > 0) {
         for (const categoryName of categories) {

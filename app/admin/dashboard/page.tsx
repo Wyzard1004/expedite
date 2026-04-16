@@ -2,6 +2,7 @@
 
 import { Suspense, useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
+import Link from 'next/link';
 
 interface Discrepancy {
   id: number;
@@ -109,6 +110,9 @@ function DashboardContent() {
       {/* Header */}
       <div className="bg-white border-b border-slate-200">
         <div className="max-w-7xl mx-auto p-6">
+          <Link href="/" className="text-blue-600 hover:text-blue-700 transition-colors text-sm font-medium flex items-center gap-1 mb-4">
+            🏠 Home
+          </Link>
           <h1 className="text-4xl font-bold text-slate-900">🏨 Host Dashboard</h1>
           <p className="text-slate-600 mt-2">
             Review data discrepancies and manage property information
