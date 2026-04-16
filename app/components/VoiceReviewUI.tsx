@@ -6,7 +6,7 @@ import { VoiceRecorder } from '@/lib/voiceRecorder';
 
 interface VoiceReviewUIProps {
   hotelId: number;
-  hotelName: string;
+  hotelName?: string; // Deprecated - use hotelId for display
   dataGaps: Array<{ category_id: number; category_name: string }>;
   onClose: () => void;
   onSubmitSuccess?: () => void;
@@ -37,6 +37,8 @@ export default function VoiceReviewUI({
   const [previousTranscript, setPreviousTranscript] = useState('');
   const [isAppendingMode, setIsAppendingMode] = useState(false);
   const [conversationHistory, setConversationHistory] = useState<Array<{ role: 'user' | 'assistant'; content: string }>>([]);
+  const [skipAiResponse, setSkipAiResponse] = useState(false);
+  const [aiLoading, setAiLoading] = useState(false);
 
   // Check if voice recording is supported
   const isSupported = VoiceRecorder.isSupported();
@@ -92,10 +94,12 @@ export default function VoiceReviewUI({
     try {
       setError(null);
       
-      // If appending, preserve the previous transcript
-      if (append && conversationActive && transcript) {
+      // If appending, preserve the current transcript
+      if (append && transcript) {
         setPreviousTranscript(transcript);
         setIsAppendingMode(true);
+        // Clear only the current input, not the full transcript
+        // The full transcript will be preserved in previousTranscript
       } else {
         setTranscript('');
         setRecordedBlob(null);
@@ -196,20 +200,79 @@ export default function VoiceReviewUI({
       const data = await response.json();
       const newText = data.text || '';
       
-      // If in append mode, combine with previous transcript
-      if (isAppendingMode && previousTranscript) {
-        setTranscript(`${previousTranscript} ${newText}`);
+      // Check append mode BEFORE clearing state
+      const wasAppending = isAppendingMode;
+      const previousText = previousTranscript;
+      
+      // Combine transcript carefully
+      if (wasAppending && previousText) {
+        // Append mode: combine previous + new text, with space separator
+        setTranscript(`${previousText} ${newText}`);
       } else {
+        // Normal mode: just use new text
         setTranscript(newText);
       }
       
+      // Always clear append state after transcription
       setIsAppendingMode(false);
       setPreviousTranscript('');
+      
+      // Auto-trigger AI response after transcription (if not appending and not skipping)
+      if (!wasAppending && !skipAiResponse && dataGaps.length > 0 && !conversationActive) {
+        // Auto-trigger AI response with the new transcript
+        const updatedHistory = [
+          ...conversationHistory,
+          { role: 'user' as const, content: newText },
+        ];
+        
+        await triggerAiResponse(newText, updatedHistory);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Transcription failed');
       setIsAppendingMode(false);
     } finally {
       setTranscribing(false);
+    }
+  };
+
+  const triggerAiResponse = async (userText: string, history: Array<{ role: 'user' | 'assistant'; content: string }>) => {
+    try {
+      setAiLoading(true);
+      const gapNames = dataGaps.map((gap) => gap.category_name);
+      
+      const responseRes = await fetch('/api/voice/respond', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          context: `Hotel ${hotelId}`,
+          gaps_targets: gapNames,
+          user_text: userText,
+          conversation_history: history,
+        }),
+      });
+
+      if (responseRes.ok) {
+        const responseData = await responseRes.json();
+        setAiResponse(responseData.response);
+        setAudioUrl(responseData.audio_url);
+        setConversationActive(responseData.should_ask_more);
+        
+        // Update conversation history with bot response
+        setConversationHistory([
+          ...history,
+          { role: 'assistant', content: responseData.response },
+        ]);
+
+        // Play audio if available
+        if (responseData.audio_url) {
+          playAudio(responseData.audio_url);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to get AI response:', err);
+      // Don't show error - this is non-blocking
+    } finally {
+      setAiLoading(false);
     }
   };
 
@@ -223,45 +286,25 @@ export default function VoiceReviewUI({
         return;
       }
 
-      // Get AI response with TTS
-      if (!conversationActive && dataGaps.length > 0) {
-        const gapNames = dataGaps.map((gap) => gap.category_name);
+      // If conversation is active and we have an AI response, this is a "Continue" action
+      if (conversationActive && aiResponse) {
+        // Reset for next turn
+        setAiResponse(null);
+        setAudioUrl(null);
         
-        // Add user message to conversation history
+        // Continue conversation - will need another recording
+        return;
+      }
+
+      // If no AI response yet and conversation should be active, trigger it first
+      if (!conversationActive && !aiResponse && dataGaps.length > 0 && !skipAiResponse) {
         const updatedHistory = [
           ...conversationHistory,
           { role: 'user' as const, content: transcript },
         ];
         
-        const responseRes = await fetch('/api/voice/respond', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            context: `Hotel: ${hotelName}`,
-            gaps_targets: gapNames,
-            user_text: transcript,
-            conversation_history: updatedHistory,
-          }),
-        });
-
-        if (responseRes.ok) {
-          const responseData = await responseRes.json();
-          setAiResponse(responseData.response);
-          setAudioUrl(responseData.audio_url);
-          setConversationActive(responseData.should_ask_more);
-          
-          // Update conversation history with bot response
-          setConversationHistory([
-            ...updatedHistory,
-            { role: 'assistant', content: responseData.response },
-          ]);
-
-          // Play audio if available
-          if (responseData.audio_url) {
-            playAudio(responseData.audio_url);
-          }
-          return;
-        }
+        await triggerAiResponse(transcript, updatedHistory);
+        return;
       }
 
       // Submit final review
@@ -335,7 +378,7 @@ export default function VoiceReviewUI({
       <div className="p-6 text-center">
         <div className="text-4xl mb-3">✅</div>
         <h3 className="text-xl font-bold text-slate-900 mb-2">Thank you for your voice review!</h3>
-        <p className="text-slate-600">Your feedback helps us improve {hotelName}</p>
+        <p className="text-slate-600">Your feedback helps us improve Hotel {hotelId}</p>
       </div>
     );
   }
@@ -360,7 +403,7 @@ export default function VoiceReviewUI({
       )}
 
       {/* Microphone Button */}
-      {!conversationActive || !transcript ? (
+      {!conversationActive && !aiResponse && !transcript ? (
         <MicrophoneButton
           onRecordingStart={() => handleStartRecording(false)}
           onRecordingStop={handleStopRecording}
@@ -370,33 +413,22 @@ export default function VoiceReviewUI({
         />
       ) : null}
 
-      {/* Append Mode Button (during conversation with existing transcript) */}
-      {conversationActive && transcript && !isRecording && (
-        <div className="bg-blue-50 p-4 rounded border-l-4 border-blue-500 space-y-3">
-          <p className="text-sm font-semibold text-blue-900">Want to add more to your response?</p>
-          <button
-            onClick={() => handleStartRecording(true)}
-            disabled={submitting || isPlayingAudio}
-            className="w-full px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-sm hover:shadow"
-          >
-            Mic Append More
-          </button>
-        </div>
-      )}
+      {/* Append Mode Button (during conversation with existing transcript) - MOVED BELOW AI RESPONSE */}
+      {null}{/* Removed from here */}
 
       {/* Appending Mode Indicator */}
       {isRecording && isAppendingMode && previousTranscript && (
         <div className="bg-amber-50 p-4 rounded border-l-4 border-amber-500 space-y-3">
-          <p className="text-xs font-semibold text-amber-900 mb-2">Appending mode</p>
+          <p className="text-xs font-semibold text-amber-900 mb-2">🎙️ Recording appended message...</p>
           <p className="text-xs text-amber-800 italic mb-2">Previous message:</p>
-          <p className="text-sm text-amber-900 bg-white p-2 rounded border border-amber-200">
+          <p className="text-sm text-amber-900 bg-white p-2 rounded border border-amber-200 max-h-24 overflow-y-auto">
             {previousTranscript}
           </p>
           <button
             onClick={handleStopRecording}
             className="w-full px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white text-sm font-medium rounded transition-colors"
           >
-            End Append
+            ✓ End Append & Transcribe
           </button>
         </div>
       )}
@@ -457,11 +489,19 @@ export default function VoiceReviewUI({
         </div>
       )}
 
+      {/* Loading AI Response */}
+      {aiLoading && (
+        <div className="bg-blue-50 p-4 rounded border-l-4 border-blue-500 flex items-center gap-3">
+          <div className="w-5 h-5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+          <p className="text-sm font-semibold text-blue-900">Getting AI response...</p>
+        </div>
+      )}
+
       {/* AI Response with TTS Audio */}
       {aiResponse && (
-        <div className="bg-purple-50 p-4 rounded border-l-4 border-purple-500">
+        <div className="bg-purple-50 p-4 rounded border-l-4 border-purple-500 space-y-4">
           <p className="text-sm font-semibold text-purple-900 mb-2">🤖 AI Response:</p>
-          <p className="text-sm text-purple-800 mb-3">{aiResponse}</p>
+          <p className="text-sm text-purple-800">{aiResponse}</p>
 
           {/* Audio Player */}
           {audioUrl && (
@@ -474,6 +514,36 @@ export default function VoiceReviewUI({
                 {isPlayingAudio ? '🔊 Playing...' : '🔊 Play Audio'}
               </button>
               <p className="text-xs text-purple-600">Powered by ElevenLabs</p>
+            </div>
+          )}
+
+          {/* Mic Append Button - below AI response */}
+          {conversationActive && !isRecording && (
+            <div className="border-t border-purple-200 pt-4 mt-4">
+              <p className="text-sm font-semibold text-purple-900 mb-3">Want to add more to your response?</p>
+              <button
+                onClick={() => handleStartRecording(true)}
+                disabled={submitting || isPlayingAudio}
+                className="w-full px-4 py-3 bg-purple-600 hover:bg-purple-700 text-white font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-sm hover:shadow"
+              >
+                🎤 Add More
+              </button>
+            </div>
+          )}
+
+          {/* Skip AI Response Option */}
+          {!conversationActive && !isRecording && (
+            <div className="border-t border-purple-200 pt-4 mt-4">
+              <p className="text-xs text-purple-700 mb-2">Not what you were looking for?</p>
+              <button
+                onClick={() => {
+                  setAiResponse(null);
+                  setSkipAiResponse(true);
+                }}
+                className="w-full px-3 py-2 text-purple-600 hover:bg-purple-100 text-sm font-medium rounded transition-colors"
+              >
+                Skip AI response & submit review
+              </button>
             </div>
           )}
         </div>
@@ -490,25 +560,43 @@ export default function VoiceReviewUI({
       <div className="flex gap-3 pt-4">
         <button
           onClick={onClose}
-          disabled={submitting || isRecording || isPlayingAudio}
+          disabled={submitting || isRecording || isPlayingAudio || aiLoading}
           className="flex-1 px-4 py-2 border border-slate-300 hover:border-slate-400 text-slate-700 font-medium rounded-lg transition-colors disabled:opacity-50"
         >
           Cancel
         </button>
-        {transcript && (
+        {transcript && !conversationActive && (
           <button
             onClick={handleSubmitVoiceReview}
-            disabled={submitting || !transcript.trim() || isPlayingAudio}
+            disabled={submitting || !transcript.trim() || isPlayingAudio || aiLoading}
+            className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+          >
+            {submitting || aiLoading ? (
+              <>
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                {aiLoading ? 'Getting response...' : 'Submitting...'}
+              </>
+            ) : (
+              <>
+                ✓ Submit Review
+              </>
+            )}
+          </button>
+        )}
+        {conversationActive && !isRecording && (
+          <button
+            onClick={handleSubmitVoiceReview}
+            disabled={submitting || isPlayingAudio}
             className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
             {submitting ? (
               <>
                 <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                {conversationActive ? 'Getting Response...' : 'Submitting...'}
+                Submitting...
               </>
             ) : (
               <>
-                {conversationActive ? '→ Continue' : '✓ Submit Voice Review'}
+                ✓ Submit Final Review
               </>
             )}
           </button>

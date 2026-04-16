@@ -7,7 +7,7 @@ import OneClickTags from './OneClickTags';
 
 interface TextReviewFormProps {
   hotelId: number;
-  hotelName: string;
+  hotelName?: string; // Deprecated - use hotelId for display
   dataGaps: Array<{ category_id: number; category_name: string }>;
   onClose: () => void;
   onSubmitSuccess?: () => void;
@@ -130,7 +130,7 @@ export default function TextReviewForm({
       <div className="p-6 text-center">
         <div className="text-4xl mb-3">✅</div>
         <h3 className="text-xl font-bold text-slate-900 mb-2">Thank you for your review!</h3>
-        <p className="text-slate-600">Your feedback helps us improve {hotelName}</p>
+        <p className="text-slate-600">Your feedback helps us improve Hotel {hotelId}</p>
       </div>
     );
   }

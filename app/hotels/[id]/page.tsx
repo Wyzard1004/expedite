@@ -424,7 +424,6 @@ export default function HotelPage({ params }: PageProps) {
       {showReviewModal && (
         <ReviewModal
           hotelId={hotelId!}
-          hotelName={hotel?.name || 'This Hotel'}
           dataGaps={gaps}
           onClose={() => setShowReviewModal(false)}
           onSubmitSuccess={() => {

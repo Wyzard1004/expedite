@@ -40,11 +40,13 @@ function DashboardContent() {
       try {
         const res = await fetch('/api/hotels');
         const data = await res.json();
-        setHotels(data.hotels || []);
+        // Sort hotels by ID for consistent ordering
+        const sortedHotels = (data.hotels || []).sort((a: Hotel, b: Hotel) => a.id - b.id);
+        setHotels(sortedHotels);
 
         // If no hotel selected but we have hotels, select the first one
-        if (!selectedHotelId && data.hotels?.length > 0) {
-          setSelectedHotelId(data.hotels[0].id);
+        if (!selectedHotelId && sortedHotels?.length > 0) {
+          setSelectedHotelId(sortedHotels[0].id);
         }
       } catch (err) {
         console.error('Failed to fetch hotels:', err);
@@ -134,7 +136,7 @@ function DashboardContent() {
             <option value="">Choose a hotel...</option>
             {hotels.map((hotel) => (
               <option key={hotel.id} value={hotel.id}>
-                {hotel.name} ({hotel.location})
+                Hotel {hotel.id}
               </option>
             ))}
           </select>

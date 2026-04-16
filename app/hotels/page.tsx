@@ -23,7 +23,9 @@ export default function HotelsPage() {
         const res = await fetch('/api/hotels');
         if (!res.ok) throw new Error('Failed to fetch hotels');
         const data = await res.json();
-        setHotels(data.hotels || []);
+        // Sort by ID to ensure consistent ordering
+        const sortedHotels = (data.hotels || []).sort((a: Hotel, b: Hotel) => a.id - b.id);
+        setHotels(sortedHotels);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Unknown error');
       } finally {
@@ -82,7 +84,7 @@ export default function HotelsPage() {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {hotels.map((hotel, index) => (
+            {hotels.map((hotel) => (
               <Link
                 key={hotel.id}
                 href={`/hotels/${hotel.id}`}
@@ -90,7 +92,7 @@ export default function HotelsPage() {
               >
                 <div className="p-6">
                   <h2 className="text-xl font-semibold text-slate-900 group-hover:text-blue-600 transition-colors">
-                    Hotel {index + 1}
+                    Hotel {hotel.id}
                   </h2>
                   <p className="text-slate-600 text-sm mt-1">📍 {hotel.location}</p>
                   <p className="text-slate-700 text-sm mt-3 line-clamp-2">{hotel.description}</p>

@@ -6,7 +6,7 @@ import VoiceReviewUI from './VoiceReviewUI';
 
 interface ReviewModalProps {
   hotelId: number;
-  hotelName: string;
+  hotelName?: string; // Deprecated - use hotelId for display
   dataGaps: Array<{ category_id: number; category_name: string }>;
   onClose: () => void;
   onSubmitSuccess?: () => void;
@@ -28,7 +28,7 @@ export default function ReviewModal({
         <div className="flex items-center justify-between p-6 border-b border-slate-200">
           <div>
             <h2 className="text-2xl font-bold text-slate-900">Leave a Review</h2>
-            <p className="text-slate-600 text-sm mt-1">for {hotelName}</p>
+            <p className="text-slate-600 text-sm mt-1">for Hotel {hotelId}</p>
           </div>
           <button
             onClick={onClose}
@@ -67,7 +67,6 @@ export default function ReviewModal({
           {activeTab === 'text' ? (
             <TextReviewForm
               hotelId={hotelId}
-              hotelName={hotelName}
               dataGaps={dataGaps}
               onClose={onClose}
               onSubmitSuccess={onSubmitSuccess}
@@ -75,7 +74,6 @@ export default function ReviewModal({
           ) : (
             <VoiceReviewUI
               hotelId={hotelId}
-              hotelName={hotelName}
               dataGaps={dataGaps}
               onClose={onClose}
               onSubmitSuccess={onSubmitSuccess}
