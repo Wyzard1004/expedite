@@ -119,7 +119,7 @@ Return ONLY a JSON object:
     }
 
     const ratingData = JSON.parse(jsonMatch[0]);
-    const rating = Math.max(1, Math.min(5, Math.round(ratingData.rating * 2) / 2));
+    const rating = Math.max(1, Math.min(5, parseFloat(ratingData.rating)));
 
     return {
       success: true,
@@ -184,7 +184,7 @@ async function calculateHotelRating(hotelId: number): Promise<number | null> {
   const { avg, total } = result.rows[0] || { avg: null, total: 0 };
   if (!avg || total === 0) return null;
 
-  const rounded = Math.round(parseFloat(avg) * 2) / 2;
+  const rounded = parseFloat(avg); // Keep exact decimal precision
   await query(
     `UPDATE hotels SET llm_rating = $1, llm_rating_updated_at = CURRENT_TIMESTAMP WHERE id = $2`,
     [rounded, hotelId]

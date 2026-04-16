@@ -88,8 +88,8 @@ Return ONLY a JSON object:
       return { success: false, error: 'Failed to parse LLM analysis' };
     }
 
-    // Validate and clamp rating between 1-5
-    const llmRating = Math.max(1, Math.min(5, Math.round(ratingData.rating * 2) / 2));
+    // Validate and clamp rating between 1-5 (no rounding - keep exact decimal)
+    const llmRating = Math.max(1, Math.min(5, parseFloat(ratingData.rating)));
 
     // Update review with LLM rating
     await query(
@@ -139,7 +139,7 @@ export async function calculateHotelLLMRating(hotelId: number): Promise<{
       return { success: true, llm_rating: undefined, review_count: 0 };
     }
 
-    const llmRating = Math.round(parseFloat(avg_rating) * 2) / 2; // Round to nearest 0.5
+    const llmRating = parseFloat(avg_rating); // Keep exact decimal precision
 
     // Update hotel with calculated LLM rating
     await query(

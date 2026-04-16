@@ -23,8 +23,8 @@ CREATE INDEX IF NOT EXISTS idx_review_ratings_session_id ON review_ratings(guest
 ALTER TABLE reviews ADD COLUMN IF NOT EXISTS upvotes INTEGER DEFAULT 0;
 ALTER TABLE reviews ADD COLUMN IF NOT EXISTS downvotes INTEGER DEFAULT 0;
 
--- Ensure reviews table has LLM rating columns
-ALTER TABLE reviews ADD COLUMN IF NOT EXISTS llm_rating DECIMAL(2,1);
+-- Ensure reviews table has LLM rating columns with proper precision
+ALTER TABLE reviews ADD COLUMN IF NOT EXISTS llm_rating DECIMAL(3,2);
 ALTER TABLE reviews ADD COLUMN IF NOT EXISTS llm_rating_updated_at TIMESTAMP;
 
 -- Ensure hotels table has the rating columns

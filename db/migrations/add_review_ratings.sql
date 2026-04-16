@@ -13,7 +13,7 @@ ALTER TABLE reviews ADD COLUMN IF NOT EXISTS upvotes INTEGER DEFAULT 0;
 ALTER TABLE reviews ADD COLUMN IF NOT EXISTS downvotes INTEGER DEFAULT 0;
 
 -- Add LLM rating for individual reviews (1-5 scale, unbiased analysis)
-ALTER TABLE reviews ADD COLUMN IF NOT EXISTS llm_rating DECIMAL(2,1);
+ALTER TABLE reviews ADD COLUMN IF NOT EXISTS llm_rating DECIMAL(3,2);
 ALTER TABLE reviews ADD COLUMN IF NOT EXISTS llm_rating_updated_at TIMESTAMP;
 
 -- Add hotel rating columns (from original data)

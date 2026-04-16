@@ -115,7 +115,7 @@ Return ONLY a JSON object:
     }
 
     const ratingData = JSON.parse(jsonMatch[0]);
-    const rating = Math.max(1, Math.min(5, Math.round(ratingData.rating * 2) / 2));
+    const rating = Math.max(1, Math.min(5, parseFloat(ratingData.rating)));
 
     return {
       success: true,
