@@ -7,6 +7,9 @@ interface Hotel {
   location: string;
   description: string;
   created_at: string;
+  star_rating?: number;
+  guest_rating?: number;
+  llm_rating?: number;
 }
 
 interface Review {
@@ -16,6 +19,9 @@ interface Review {
   content: string;
   created_at: string;
   categories: string[];
+  upvotes?: number;
+  downvotes?: number;
+  llm_rating?: number;
 }
 
 interface Category {
@@ -71,9 +77,9 @@ export async function GET(
 
     const categories: Category[] = categoriesResult.rows;
 
-    // Fetch reviews with their categories
+    // Fetch reviews with their categories and upvotes
     const reviewsResult = await query(
-      `SELECT r.id, r.hotel_id, r.guest_name, r.content, r.created_at
+      `SELECT r.id, r.hotel_id, r.guest_name, r.content, r.created_at, r.upvotes, r.downvotes, r.llm_rating
        FROM reviews r
        WHERE r.hotel_id = $1
        ORDER BY r.created_at DESC
@@ -95,6 +101,8 @@ export async function GET(
         return {
           ...review,
           categories: reviewCategoriesResult.rows.map((row) => row.name),
+          upvotes: parseInt(review.upvotes, 10) || 0,
+          downvotes: parseInt(review.downvotes, 10) || 0,
         };
       }),
     );

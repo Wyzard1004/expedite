@@ -12,7 +12,11 @@ export interface EmbeddingJobData {
   reviewIds: number[];
 }
 
-export type JobType = 'category-summarize' | 'embedding-batch';
+export interface LLMHotelRatingJobData {
+  hotelId: number;
+}
+
+export type JobType = 'category-summarize' | 'embedding-batch' | 'llm-hotel-rating';
 export type JobStatus = 'pending' | 'processing' | 'completed' | 'failed';
 
 interface QueuedJob {
@@ -100,6 +104,36 @@ export async function queueEmbeddingBatch(reviewIds: number[]): Promise<string> 
   }
 
   console.log(`[Queue] Queued embedding batch: job ${jobId} for ${reviewIds.length} reviews`);
+  return jobId;
+}
+
+/**
+ * Queue an LLM-based hotel rating analysis
+ */
+export async function queueLLMHotelRating(hotelId: number): Promise<string> {
+  const jobId = generateJobId();
+  const job: QueuedJob = {
+    id: jobId,
+    type: 'llm-hotel-rating',
+    data: { hotelId },
+    status: 'pending',
+    createdAt: new Date(),
+  };
+
+  jobs.set(jobId, job);
+
+  // Store in database for persistence
+  try {
+    await query(
+      `INSERT INTO job_queue (job_id, job_type, data, status)
+       VALUES ($1, $2, $3, $4)`,
+      [jobId, 'llm-hotel-rating', JSON.stringify(job.data), 'pending']
+    );
+  } catch (error) {
+    console.error('[Queue] Failed to persist job to database:', error);
+  }
+
+  console.log(`[Queue] Queued LLM rating analysis: job ${jobId} for hotel ${hotelId}`);
   return jobId;
 }
 

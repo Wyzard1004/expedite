@@ -7,6 +7,9 @@ interface SearchResult {
   guest_name: string;
   created_at: string;
   similarity: number;
+  upvotes?: number;
+  downvotes?: number;
+  llm_rating?: number;
 }
 
 interface SearchRequest {
@@ -55,6 +58,9 @@ export async function GET(
         r.content,
         r.guest_name,
         r.created_at,
+        r.upvotes,
+        r.downvotes,
+        r.llm_rating,
         1 - (r.embedding <=> $1::vector) AS similarity
       FROM reviews r
       WHERE r.hotel_id = $2 AND r.embedding IS NOT NULL
@@ -70,6 +76,9 @@ export async function GET(
       guest_name: row.guest_name,
       created_at: row.created_at,
       similarity: row.similarity,
+      upvotes: parseInt(row.upvotes, 10) || 0,
+      downvotes: parseInt(row.downvotes, 10) || 0,
+      llm_rating: row.llm_rating ? parseFloat(row.llm_rating) : undefined,
     }));
 
     return Response.json({

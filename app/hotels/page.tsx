@@ -66,7 +66,10 @@ export default function HotelsPage() {
       {/* Header */}
       <div className="bg-white border-b border-slate-200">
         <div className="max-w-6xl mx-auto p-6">
-          <h1 className="text-4xl font-bold text-slate-900">🏨 Hotels</h1>
+          <Link href="/" className="text-blue-600 hover:text-blue-700 transition-colors text-sm font-medium flex items-center gap-1 mb-4">
+            Home
+          </Link>
+          <h1 className="text-4xl font-bold text-slate-900">Hotels</h1>
           <p className="text-slate-600 mt-2">Explore hotels and help us improve their data</p>
         </div>
       </div>
@@ -79,7 +82,7 @@ export default function HotelsPage() {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {hotels.map((hotel) => (
+            {hotels.map((hotel, index) => (
               <Link
                 key={hotel.id}
                 href={`/hotels/${hotel.id}`}
@@ -87,7 +90,7 @@ export default function HotelsPage() {
               >
                 <div className="p-6">
                   <h2 className="text-xl font-semibold text-slate-900 group-hover:text-blue-600 transition-colors">
-                    {hotel.name || 'Hotel'}
+                    Hotel {index + 1}
                   </h2>
                   <p className="text-slate-600 text-sm mt-1">📍 {hotel.location}</p>
                   <p className="text-slate-700 text-sm mt-3 line-clamp-2">{hotel.description}</p>

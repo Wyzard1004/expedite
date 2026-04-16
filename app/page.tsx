@@ -4,7 +4,7 @@ export default function Home() {
       {/* Navigation Header */}
       <nav className="bg-white shadow-sm sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
-          <div className="text-2xl font-bold text-blue-600">🏨 Expedite</div>
+          <div className="text-2xl font-bold text-blue-600">Expedite</div>
           <a href="/admin/dashboard" className="px-4 py-2 text-sm font-medium text-slate-700 hover:text-blue-600">Admin</a>
         </div>
       </nav>
@@ -36,7 +36,6 @@ export default function Home() {
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
           {/* Feature 1: Reviews */}
           <div className="bg-white rounded-lg shadow-lg p-8 hover:shadow-xl transition-shadow">
-            <div className="text-4xl mb-4">⭐</div>
             <h3 className="text-xl font-bold text-slate-900 mb-3">Guest Reviews</h3>
             <p className="text-slate-600">
               Collect and manage guest feedback with text and voice review options. AI-enhanced responses keep conversations going.
@@ -45,7 +44,6 @@ export default function Home() {
 
           {/* Feature 2: Voice */}
           <div className="bg-white rounded-lg shadow-lg p-8 hover:shadow-xl transition-shadow">
-            <div className="text-4xl mb-4">🎙️</div>
             <h3 className="text-xl font-bold text-slate-900 mb-3">Voice & Audio</h3>
             <p className="text-slate-600">
               Accept voice reviews and get AI-generated audio responses with realistic text-to-speech synthesis.
@@ -54,7 +52,6 @@ export default function Home() {
 
           {/* Feature 3: Discrepancies */}
           <div className="bg-white rounded-lg shadow-lg p-8 hover:shadow-xl transition-shadow">
-            <div className="text-4xl mb-4">🔍</div>
             <h3 className="text-xl font-bold text-slate-900 mb-3">Discrepancy Detection</h3>
             <p className="text-slate-600">
               AI automatically flags contradictions between reviews and advertised amenities for quick resolution.
@@ -63,7 +60,6 @@ export default function Home() {
 
           {/* Feature 4: Analytics */}
           <div className="bg-white rounded-lg shadow-lg p-8 hover:shadow-xl transition-shadow">
-            <div className="text-4xl mb-4">📊</div>
             <h3 className="text-xl font-bold text-slate-900 mb-3">Analytics Dashboard</h3>
             <p className="text-slate-600">
               Real-time insights into property performance, review trends, and data quality metrics.
@@ -72,7 +68,6 @@ export default function Home() {
 
           {/* Feature 5: Background Processing */}
           <div className="bg-white rounded-lg shadow-lg p-8 hover:shadow-xl transition-shadow">
-            <div className="text-4xl mb-4">⚡</div>
             <h3 className="text-xl font-bold text-slate-900 mb-3">Async Processing</h3>
             <p className="text-slate-600">
               Advanced AI analysis runs in the background without slowing down guest interactions.
@@ -81,7 +76,6 @@ export default function Home() {
 
           {/* Feature 6: Property Manager Tools */}
           <div className="bg-white rounded-lg shadow-lg p-8 hover:shadow-xl transition-shadow">
-            <div className="text-4xl mb-4">🛠️</div>
             <h3 className="text-xl font-bold text-slate-900 mb-3">Manager Tools</h3>
             <p className="text-slate-600">
               Complete control over your properties, amenities, categories, and review management.
@@ -97,7 +91,6 @@ export default function Home() {
         <div className="grid md:grid-cols-2 gap-8">
           {/* Hotels Card */}
           <a href="/hotels" className="bg-white rounded-lg shadow-lg p-12 hover:shadow-2xl transition-all hover:scale-105">
-            <div className="text-6xl mb-6">🏨</div>
             <h3 className="text-2xl font-bold text-slate-900 mb-3">Browse Hotels</h3>
             <p className="text-slate-600 mb-6">
               Explore all properties in the system. View amenities, guest reviews, and property details.
@@ -109,7 +102,6 @@ export default function Home() {
 
           {/* Admin Dashboard Card */}
           <a href="/admin/dashboard" className="bg-white rounded-lg shadow-lg p-12 hover:shadow-2xl transition-all hover:scale-105">
-            <div className="text-6xl mb-6">👨‍💼</div>
             <h3 className="text-2xl font-bold text-slate-900 mb-3">Admin Dashboard</h3>
             <p className="text-slate-600 mb-6">
               Manage property data, resolve discrepancies, and track review analytics for your properties.
@@ -146,7 +138,7 @@ export default function Home() {
         <div className="max-w-7xl mx-auto px-6">
           <div className="flex flex-col md:flex-row justify-between items-center gap-8">
             <div>
-              <div className="text-2xl font-bold text-white mb-2">🏨 Expedite</div>
+              <div className="text-2xl font-bold text-white mb-2">Expedite</div>
               <p className="text-slate-400">Hotel Review Management Platform</p>
             </div>
             <div className="flex gap-8">

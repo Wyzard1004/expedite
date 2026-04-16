@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import UpvoteButton from './UpvoteButton';
 
 interface SearchResult {
   id: number;
@@ -8,6 +9,9 @@ interface SearchResult {
   guest_name: string;
   created_at: string;
   similarity: number;
+  upvotes?: number;
+  downvotes?: number;
+  llm_rating?: number;
 }
 
 interface SemanticSearchUIProps {
@@ -131,7 +135,7 @@ export default function SemanticSearchUI({ hotelId }: SemanticSearchUIProps) {
                     key={result.id}
                     className="bg-white border border-slate-200 rounded-lg p-4 hover:shadow-md transition-shadow"
                   >
-                    <div className="flex items-start justify-between mb-2">
+                  <div className="flex items-start justify-between mb-2">
                       <div>
                         <div className="flex items-center gap-3">
                           <span className="font-medium text-slate-900">{result.guest_name}</span>
@@ -140,10 +144,23 @@ export default function SemanticSearchUI({ hotelId }: SemanticSearchUIProps) {
                           </span>
                         </div>
                       </div>
-                      <div className="text-right">
-                        <span className={`px-3 py-1 rounded-full text-sm font-semibold ${getSimilarityColor(result.similarity)}`}>
-                          {(result.similarity * 100).toFixed(0)}% match
-                        </span>
+                      <div className="text-right flex flex-col items-end gap-2">
+                        <div className="flex items-center gap-2">
+                          <span className={`px-3 py-1 rounded-full text-sm font-semibold ${getSimilarityColor(result.similarity)}`}>
+                            {(result.similarity * 100).toFixed(0)}% match
+                          </span>
+                          {result.llm_rating && (
+                            <div className="flex items-center gap-1 bg-purple-100 rounded px-2 py-1">
+                              <span className="text-sm font-semibold text-purple-700">{result.llm_rating}</span>
+                              <span className="text-xs text-purple-600">/5</span>
+                            </div>
+                          )}
+                        </div>
+                        <UpvoteButton 
+                          reviewId={result.id}
+                          initialUpvotes={result.upvotes}
+                          initialDownvotes={result.downvotes}
+                        />
                       </div>
                     </div>
                     <p className="text-slate-700 text-sm leading-relaxed">{result.content}</p>

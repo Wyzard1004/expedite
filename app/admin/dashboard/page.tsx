@@ -113,7 +113,7 @@ function DashboardContent() {
           <Link href="/" className="text-blue-600 hover:text-blue-700 transition-colors text-sm font-medium flex items-center gap-1 mb-4">
             🏠 Home
           </Link>
-          <h1 className="text-4xl font-bold text-slate-900">🏨 Host Dashboard</h1>
+          <h1 className="text-4xl font-bold text-slate-900">Host Dashboard</h1>
           <p className="text-slate-600 mt-2">
             Review data discrepancies and manage property information
           </p>
@@ -172,8 +172,8 @@ function DashboardContent() {
                       : 'bg-white text-slate-700 border border-slate-300 hover:border-slate-400'
                   }`}
                 >
-                  {f === 'all' && '📋 All'}
-                  {f === 'open' && '⚠️ Open'}
+                  {f === 'all' && 'All'}
+                  {f === 'open' && 'Open'}
                   {f === 'resolved' && '✅ Resolved'}
                 </button>
               ))}

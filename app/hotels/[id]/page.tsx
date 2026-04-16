@@ -4,12 +4,16 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import ReviewModal from '@/app/components/ReviewModal';
 import SemanticSearchUI from '@/app/components/SemanticSearchUI';
+import UpvoteButton from '@/app/components/UpvoteButton';
 
 interface Hotel {
   id: number;
   name: string;
   location: string;
   description: string;
+  star_rating?: number;
+  guest_rating?: number;
+  llm_rating?: number;
 }
 
 interface Review {
@@ -18,6 +22,9 @@ interface Review {
   content: string;
   created_at: string;
   categories: string[];
+  upvotes?: number;
+  downvotes?: number;
+  llm_rating?: number;
 }
 
 interface Category {
@@ -47,6 +54,7 @@ export default function HotelPage({ params }: PageProps) {
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [showAllReviews, setShowAllReviews] = useState(false);
   const [selectedAmenity, setSelectedAmenity] = useState<Category | null>(null);
+  const [helpfulReviews, setHelpfulReviews] = useState<Review[]>([]);
 
   // Get hotel ID from params
   useEffect(() => {
@@ -80,6 +88,13 @@ export default function HotelPage({ params }: PageProps) {
         if (gapsRes.ok) {
           const gapsData = await gapsRes.json();
           setGaps(gapsData.gaps);
+        }
+
+        // Fetch helpful reviews
+        const helpfulRes = await fetch(`/api/reviews/ratings?hotel_id=${hotelId}&limit=3`);
+        if (helpfulRes.ok) {
+          const helpfulData = await helpfulRes.json();
+          setHelpfulReviews(helpfulData.reviews || []);
         }
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Unknown error');
@@ -133,13 +148,13 @@ export default function HotelPage({ params }: PageProps) {
         <div className="max-w-4xl mx-auto p-4">
           <div className="flex items-center justify-between mb-4">
             <Link href="/" className="text-blue-600 hover:text-blue-700 transition-colors text-sm font-medium flex items-center gap-1">
-              🏠 Home
+              Home
             </Link>
             <Link href="/hotels" className="text-blue-600 hover:text-blue-700 transition-colors text-sm font-medium flex items-center gap-1">
               ← Back to Hotels
             </Link>
           </div>
-          <h1 className="text-4xl font-bold text-slate-900">{hotel.name || 'Hotel'}</h1>
+          <h1 className="text-4xl font-bold text-slate-900">Hotel {hotelId}</h1>
           <p className="text-slate-600 mt-2">📍 {hotel.location}</p>
         </div>
       </div>
@@ -151,11 +166,74 @@ export default function HotelPage({ params }: PageProps) {
           <p className="text-slate-700 leading-relaxed">{hotel.description}</p>
         </div>
 
+        {/* Hotel Rating Section */}
+        {(hotel.star_rating || hotel.guest_rating) && (
+          <div className="bg-gradient-to-r from-yellow-50 to-amber-50 rounded-lg shadow p-6 border-l-4 border-yellow-500">
+            <h2 className="text-lg font-semibold text-slate-900 mb-3">Hotel Quality</h2>
+            <div className="space-y-3">
+              {hotel.star_rating && (
+                <div className="flex items-center gap-4">
+                  <span className="text-sm font-medium text-slate-700 w-24">Star Rating:</span>
+                  <div className="flex">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <span
+                        key={star}
+                        className={`text-2xl ${
+                          star <= (hotel.star_rating || 0)
+                            ? 'text-yellow-400'
+                            : 'text-slate-300'
+                        }`}
+                      >
+                        ★
+                      </span>
+                    ))}
+                  </div>
+                  <span className="text-sm font-semibold text-slate-900">{hotel.star_rating} stars</span>
+                </div>
+              )}
+              {hotel.guest_rating && (
+                <div className="flex items-center gap-4">
+                  <span className="text-sm font-medium text-slate-700 w-24">Guest Rating:</span>
+                  <span className="text-2xl font-bold text-yellow-500">{hotel.guest_rating.toFixed(1)}</span>
+                  <span className="text-sm text-slate-600">/ 5.0</span>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* LLM-Based Unbiased Hotel Rating Section */}
+        {hotel.llm_rating && (
+          <div className="bg-gradient-to-r from-purple-50 to-indigo-50 rounded-lg shadow p-6 border-l-4 border-purple-500">
+            <div>
+              <h2 className="text-lg font-semibold text-slate-900 mb-2">AI-Analyzed Quality Rating</h2>
+              <p className="text-xs text-slate-600 mb-4">Unbiased analysis of each review (1-5 scale), averaged for hotel rating</p>
+              <div className="flex items-center gap-4">
+                <div className="flex">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <span
+                      key={star}
+                      className={`text-2xl ${
+                        star <= Math.round(hotel.llm_rating || 0)
+                          ? 'text-purple-500'
+                          : 'text-slate-300'
+                      }`}
+                    >
+                      ★
+                    </span>
+                  ))}
+                </div>
+                <span className="text-2xl font-bold text-purple-600">{(Number(hotel.llm_rating) || 0).toFixed(1)}</span>
+                <span className="text-sm text-slate-600">/ 5.0</span>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Data Gaps / "Ideas to Cover" Section */}
         {gaps.length > 0 && (
           <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border-l-4 border-blue-500 rounded-lg p-6 shadow-sm">
             <div className="flex items-start space-x-3">
-              <div className="text-2xl">💡</div>
               <div>
                 <h2 className="text-lg font-semibold text-blue-900 mb-3">Help Us Learn More!</h2>
                 <p className="text-blue-800 text-sm mb-4">
@@ -164,7 +242,7 @@ export default function HotelPage({ params }: PageProps) {
                 <div className="space-y-2">
                   {gaps.map((gap) => (
                     <div key={gap.category_id} className="text-blue-800">
-                      <span className="font-medium">📌 {gap.category_name}</span>
+                      <span className="font-medium">{gap.category_name}</span>
                     </div>
                   ))}
                 </div>
@@ -179,17 +257,17 @@ export default function HotelPage({ params }: PageProps) {
             <div>
               <div className="flex items-center gap-2 mb-2">
                 <span className="inline-block px-3 py-1 bg-purple-600 text-white text-xs font-bold rounded-full animate-bounce">
-                  ⭐ EARN 50 PTS
+                  EARN 50 PTS
                 </span>
               </div>
               <h2 className="text-xl font-bold text-slate-900">Share Your Experience</h2>
-              <p className="text-slate-600 text-sm mt-1">Tell us about your stay at {hotel.name} and earn reward points!</p>
+              <p className="text-slate-600 text-sm mt-1">Tell us about your stay and earn reward points!</p>
             </div>
             <button
               onClick={() => setShowReviewModal(true)}
               className="px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-medium rounded-lg transition-all transform hover:scale-105 shadow-lg flex items-center justify-center gap-2 whitespace-nowrap"
             >
-              ✍️ Leave a Review
+              Leave a Review
             </button>
           </div>
         </div>
@@ -204,7 +282,7 @@ export default function HotelPage({ params }: PageProps) {
               return amenitiesWithReviews.length > 0 ? (
                 <>
                   <h2 className="text-lg font-semibold text-slate-900 mb-4">
-                    📋 Mentioned Amenities ({amenitiesWithReviews.length})
+                    Mentioned Amenities ({amenitiesWithReviews.length})
                   </h2>
                   <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
                     {amenitiesWithReviews.map((category) => (
@@ -226,23 +304,86 @@ export default function HotelPage({ params }: PageProps) {
         {/* Search Reviews Section */}
         {reviews.length > 0 && (
           <div className="bg-white rounded-lg shadow p-6">
-            <h2 className="text-lg font-semibold text-slate-900 mb-4">🔍 Search Reviews</h2>
+            <h2 className="text-lg font-semibold text-slate-900 mb-4">Search Reviews</h2>
             <SemanticSearchUI hotelId={hotelId!} />
+          </div>
+        )}
+
+        {/* Most Helpful Reviews Section */}
+        {helpfulReviews.length > 0 && (
+          <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg shadow p-6 border-l-4 border-green-500">
+            <h2 className="text-lg font-semibold text-slate-900 mb-4">Most Helpful Reviews</h2>
+            <div className="space-y-4">
+              {helpfulReviews.map((review) => (
+                <div key={review.id} className="bg-white rounded p-4 border border-green-200">
+                  <div className="flex justify-between items-start mb-2">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-3">
+                        <div>
+                          <span className="font-medium text-slate-900">{review.guest_name}</span>
+                          <p className="text-xs text-slate-500 mt-1">
+                            {new Date(review.created_at).toLocaleDateString()}
+                          </p>
+                        </div>
+                        {review.llm_rating && (
+                          <div className="flex items-center gap-1 bg-purple-100 rounded px-2 py-1">
+                            <span className="text-sm font-semibold text-purple-700">{review.llm_rating}</span>
+                            <span className="text-xs text-purple-600">/5</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    <UpvoteButton 
+                      reviewId={review.id}
+                      initialUpvotes={review.upvotes}
+                      initialDownvotes={review.downvotes}
+                    />
+                  </div>
+                  <p className="text-slate-700 text-sm mb-2">{review.content.substring(0, 200)}...</p>
+                  {review.categories.length > 0 && (
+                    <div className="flex flex-wrap gap-1">
+                      {review.categories.slice(0, 3).map((cat) => (
+                        <span key={cat} className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">
+                          {cat}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
           </div>
         )}
 
         {/* Recent Reviews */}
         {reviews.length > 0 && (
           <div className="bg-white rounded-lg shadow p-6">
-            <h2 className="text-lg font-semibold text-slate-900 mb-4">⭐ Recent Reviews ({reviews.length})</h2>
+            <h2 className="text-lg font-semibold text-slate-900 mb-4">Recent Reviews ({reviews.length})</h2>
             <div className="space-y-4">
               {(showAllReviews ? reviews : reviews.slice(0, 3)).map((review) => (
                 <div key={review.id} className="border-l-4 border-slate-300 pl-4 py-2">
                   <div className="flex justify-between items-start mb-2">
-                    <span className="font-medium text-slate-900">{review.guest_name}</span>
-                    <span className="text-xs text-slate-500">
-                      {new Date(review.created_at).toLocaleDateString()}
-                    </span>
+                    <div className="flex-1">
+                      <div className="flex items-center gap-3">
+                        <div>
+                          <span className="font-medium text-slate-900">{review.guest_name}</span>
+                          <p className="text-xs text-slate-500 mt-1">
+                            {new Date(review.created_at).toLocaleDateString()}
+                          </p>
+                        </div>
+                        {review.llm_rating && (
+                          <div className="flex items-center gap-1 bg-purple-100 rounded px-2 py-1">
+                            <span className="text-sm font-semibold text-purple-700">{review.llm_rating}</span>
+                            <span className="text-xs text-purple-600">/5</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    <UpvoteButton 
+                      reviewId={review.id}
+                      initialUpvotes={review.upvotes}
+                      initialDownvotes={review.downvotes}
+                    />
                   </div>
                   <p className="text-slate-700 text-sm mb-2">{review.content}</p>
                   {review.categories.length > 0 && (

@@ -34,6 +34,9 @@ export default function VoiceReviewUI({
   const [aiResponse, setAiResponse] = useState<string | null>(null);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
+  const [previousTranscript, setPreviousTranscript] = useState('');
+  const [isAppendingMode, setIsAppendingMode] = useState(false);
+  const [conversationHistory, setConversationHistory] = useState<Array<{ role: 'user' | 'assistant'; content: string }>>([]);
 
   // Check if voice recording is supported
   const isSupported = VoiceRecorder.isSupported();
@@ -85,11 +88,24 @@ export default function VoiceReviewUI({
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const handleStartRecording = async () => {
+  const handleStartRecording = async (append: boolean = false) => {
     try {
       setError(null);
-      setTranscript('');
-      setRecordedBlob(null);
+      
+      // If appending, preserve the previous transcript
+      if (append && conversationActive && transcript) {
+        setPreviousTranscript(transcript);
+        setIsAppendingMode(true);
+      } else {
+        setTranscript('');
+        setRecordedBlob(null);
+        setIsAppendingMode(false);
+        // Reset conversation history only when starting a new review (not appending)
+        if (!append) {
+          setConversationHistory([]);
+        }
+      }
+      
       if (recorderRef) {
         await recorderRef.startRecording();
         setIsRecording(true);
@@ -111,8 +127,17 @@ export default function VoiceReviewUI({
     if (recorderRef) {
       recorderRef.cancelRecording();
       setIsRecording(false);
-      setTranscript('');
+      
+      // If canceling during append, restore previous transcript
+      if (isAppendingMode && previousTranscript) {
+        setTranscript(previousTranscript);
+      } else {
+        setTranscript('');
+      }
+      
       setRecordedBlob(null);
+      setIsAppendingMode(false);
+      setPreviousTranscript('');
       setError(null);
     }
   };
@@ -169,9 +194,20 @@ export default function VoiceReviewUI({
       }
 
       const data = await response.json();
-      setTranscript(data.text || '');
+      const newText = data.text || '';
+      
+      // If in append mode, combine with previous transcript
+      if (isAppendingMode && previousTranscript) {
+        setTranscript(`${previousTranscript} ${newText}`);
+      } else {
+        setTranscript(newText);
+      }
+      
+      setIsAppendingMode(false);
+      setPreviousTranscript('');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Transcription failed');
+      setIsAppendingMode(false);
     } finally {
       setTranscribing(false);
     }
@@ -190,6 +226,13 @@ export default function VoiceReviewUI({
       // Get AI response with TTS
       if (!conversationActive && dataGaps.length > 0) {
         const gapNames = dataGaps.map((gap) => gap.category_name);
+        
+        // Add user message to conversation history
+        const updatedHistory = [
+          ...conversationHistory,
+          { role: 'user' as const, content: transcript },
+        ];
+        
         const responseRes = await fetch('/api/voice/respond', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -197,6 +240,7 @@ export default function VoiceReviewUI({
             context: `Hotel: ${hotelName}`,
             gaps_targets: gapNames,
             user_text: transcript,
+            conversation_history: updatedHistory,
           }),
         });
 
@@ -205,6 +249,12 @@ export default function VoiceReviewUI({
           setAiResponse(responseData.response);
           setAudioUrl(responseData.audio_url);
           setConversationActive(responseData.should_ask_more);
+          
+          // Update conversation history with bot response
+          setConversationHistory([
+            ...updatedHistory,
+            { role: 'assistant', content: responseData.response },
+          ]);
 
           // Play audio if available
           if (responseData.audio_url) {
@@ -310,19 +360,53 @@ export default function VoiceReviewUI({
       )}
 
       {/* Microphone Button */}
-      <MicrophoneButton
-        onRecordingStart={handleStartRecording}
-        onRecordingStop={handleStopRecording}
-        onRecordingCancel={handleCancelRecording}
-        isRecording={isRecording}
-        error={error}
-      />
+      {!conversationActive || !transcript ? (
+        <MicrophoneButton
+          onRecordingStart={() => handleStartRecording(false)}
+          onRecordingStop={handleStopRecording}
+          onRecordingCancel={handleCancelRecording}
+          isRecording={isRecording}
+          error={error}
+        />
+      ) : null}
+
+      {/* Append Mode Button (during conversation with existing transcript) */}
+      {conversationActive && transcript && !isRecording && (
+        <div className="bg-blue-50 p-4 rounded border-l-4 border-blue-500 space-y-3">
+          <p className="text-sm font-semibold text-blue-900">Want to add more to your response?</p>
+          <button
+            onClick={() => handleStartRecording(true)}
+            disabled={submitting || isPlayingAudio}
+            className="w-full px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-sm hover:shadow"
+          >
+            Mic Append More
+          </button>
+        </div>
+      )}
+
+      {/* Appending Mode Indicator */}
+      {isRecording && isAppendingMode && previousTranscript && (
+        <div className="bg-amber-50 p-4 rounded border-l-4 border-amber-500 space-y-3">
+          <p className="text-xs font-semibold text-amber-900 mb-2">Appending mode</p>
+          <p className="text-xs text-amber-800 italic mb-2">Previous message:</p>
+          <p className="text-sm text-amber-900 bg-white p-2 rounded border border-amber-200">
+            {previousTranscript}
+          </p>
+          <button
+            onClick={handleStopRecording}
+            className="w-full px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white text-sm font-medium rounded transition-colors"
+          >
+            End Append
+          </button>
+        </div>
+      )}
 
       {/* Recording Time Display */}
       {isRecording && (
         <div className="text-center">
           <p className="text-lg font-semibold text-slate-700">
             Recording: {formatTime(recordingTime)}
+            {isAppendingMode && ' (appending)'}
           </p>
         </div>
       )}

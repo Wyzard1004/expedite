@@ -3,6 +3,7 @@ import { query } from '@/lib/db';
 import { queueEmbeddingBatch, queueCategorySummarization } from '@/lib/queue';
 import { detectDiscrepancies } from '@/lib/discrepancies';
 import { getEmbedding } from '@/lib/embeddings';
+import { processReviewLLMRating, calculateHotelLLMRating } from '@/lib/processors/review-llm-rating';
 
 const apiKey = process.env.OPENAI_API_KEY;
 
@@ -165,6 +166,17 @@ export async function POST(request: NextRequest) {
     detectDiscrepancies(hotel_id, review_text, reviewId).catch((error) => {
       console.error('[API] Failed to detect discrepancies:', error);
     });
+
+    // Process LLM rating for this review (fire and forget)
+    // Rates the review quality on 1-5 scale, then recalculates hotel average
+    processReviewLLMRating(reviewId, review_text)
+      .then(() => {
+        // After review is rated, recalculate hotel LLM rating
+        return calculateHotelLLMRating(hotel_id);
+      })
+      .catch((error) => {
+        console.error('[API] Failed to process review LLM rating:', error);
+      });
 
     // Queue async processing (fire and forget) - for categorization jobs
     // Note: Embeddings are now generated synchronously above
